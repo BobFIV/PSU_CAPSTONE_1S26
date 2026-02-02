@@ -1,2 +1,4 @@
 #Environments and variables
 .DS_Store
+venv
+./venv
