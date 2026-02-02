@@ -1,4 +1,8 @@
 #Environments and variables
 .DS_Store
+/orchestrator/venv
 venv
-./venv
+/venv
+/acme_in/data/
+/acme_mn1/data/
+/acme_mn2/data/

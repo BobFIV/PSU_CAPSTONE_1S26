@@ -2,24 +2,15 @@
 oneM2M Orchestrator
 
 ## Running CSEs
-- Start IN-CSE as the background process
+- Mount and start IN-CSE
 ~~~sh
-docker compose up -d
+docker run -it -p 8080:8080 -e hostIPAddress=localhost -v ./acme_in:/data --name acme-in ankraft/acme-onem2m-cse:latest
 ~~~
 
 
 - Check for running container
 ~~~sh
-docker-compose ps
+docker ps
 ~~~
 
-- View logs
-~~~sh
-docker compose logs -f
-~~~
-
-- Stop
-~~~sh
-docker compose down
-~~~
 
