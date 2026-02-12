@@ -1,7 +1,7 @@
-from setup import cse_url, randomID
+from setup import Cfg, randomID
 import requests
 
-def register_AE(originator:str, application_name: str) -> bool:
+def register_AE(cfg:Cfg, originator:str, application_name: str) -> bool:
     """ Register an Application Entity
 
         Args:
@@ -31,7 +31,8 @@ def register_AE(originator:str, application_name: str) -> bool:
 
 
     # Perform the http request to create the <AE> resource
-    response = requests.post(cse_url, headers=headers, json=body)
+    response = requests.post(cfg.cse_url, headers=headers, json=body)
+
 
     # Check the response
     if response.status_code == 201:
@@ -44,7 +45,7 @@ def register_AE(originator:str, application_name: str) -> bool:
 
 
 # Unregister AE
-def unregister_AE(originator, application_name:str) -> bool:
+def unregister_AE(cfg:Cfg, originator, application_name:str) -> bool:
     """ Unregister an Application Entity
 
         Args:
@@ -62,7 +63,7 @@ def unregister_AE(originator, application_name:str) -> bool:
     }
 
     # Perform the http request to delete the <AE> resource
-    response = requests.delete(cse_url + '/' + application_name, headers=headers)
+    response = requests.delete(cfg.cse_url + '/' + application_name, headers=headers)
 
     # Check the response
     if response.status_code == 200:

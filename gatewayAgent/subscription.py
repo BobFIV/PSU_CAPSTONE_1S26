@@ -22,16 +22,6 @@ def create_subscription(originator:str, path:str, rn:str, notificationURIs:list[
 
     # Define the <subscription> resource
     body = {
-        
-        # 'm2m:Subscription': {
-        #     'rn': rn,
-        #     'notificationURI'  : notificationURIs,
-        #     'notificationContentType' : 1,
-        #     'eventNotificationCriteria' : {
-        #         'notificationEventType': [ 1, 2, 3, 4 ]
-        #     }
-        # }
-        
         'm2m:sub': {
             'rn': rn,
             'enc': {
