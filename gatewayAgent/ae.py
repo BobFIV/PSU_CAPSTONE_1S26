@@ -44,7 +44,7 @@ def register_AE(originator:str, application_name: str) -> bool:
 
 
 # Unregister AE
-def unregister_AE(application_name:str) -> bool:
+def unregister_AE(originator, application_name:str) -> bool:
     """ Unregister an Application Entity
 
         Args:
@@ -56,7 +56,7 @@ def unregister_AE(application_name:str) -> bool:
 
     # Set the oneM2M headers for deleting the <AE> resource
     headers = {
-        'X-M2M-Origin': application_name,           # unique application entity identifier
+        'X-M2M-Origin': originator,           # unique application entity identifier
         'X-M2M-RI': randomID(),                     # unique request identifier
         'X-M2M-RVI': '4' 
     }
@@ -89,13 +89,13 @@ def retrieve_AE(originator:str, path:str) -> bool:
         'X-M2M-RVI': '4' 
     }
 
-    response = requests.get(path, headers=headers)
+    response = requests.get(path, headers=headers) 
 
     # Check the response
     if response.status_code == 200:
         print('AE retrieved successfully')
     else:
-        print('Error creating container: ' + str(response.status_code))
+        print('Error retrieving AE: ' + str(response.status_code))
         return False
 
     return True

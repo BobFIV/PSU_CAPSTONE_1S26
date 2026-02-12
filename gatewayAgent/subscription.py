@@ -23,29 +23,28 @@ def create_subscription(originator:str, path:str, rn:str, notificationURIs:list[
     # Define the <subscription> resource
     body = {
         
-        'm2m:Subscription': {
-            'rn': rn,
-            'notificationURI'  : [ notificationURIs ],
-            'notificationContentType' : 1,
-            'eventNotificationCriteria' : {
-                'notificationEventType': [ 1, 2, 3, 4 ]
-            }
-        }
-        
-        # 'm2m:sub': {
+        # 'm2m:Subscription': {
         #     'rn': rn,
-        #     'enc': {
-        #         'om': [ {                           # Enable operation monitoring
-        #             'ops' : 2,                      # Monitor RETRIEVE operations
-        #             'org': originator               # Originator of the operation
-        #         } ],
-        #     },
-        #     'nct': 3,
-        #     'nu': notificationURIs
+        #     'notificationURI'  : notificationURIs,
+        #     'notificationContentType' : 1,
+        #     'eventNotificationCriteria' : {
+        #         'notificationEventType': [ 1, 2, 3, 4 ]
+        #     }
         # }
+        
+        'm2m:sub': {
+            'rn': rn,
+            'enc': {
+                'net':[1,2,3,4]
+                # 'om': [ {                           # Enable operation monitoring
+                #     'ops' : 2,                      # Monitor RETRIEVE operations
+                #     'org': originator               # Originator of the operation
+                # } ],
+            },
+            'nct': 1,
+            'nu': notificationURIs
+        }
     }
-
-
 
     # Perform the http request to create the <subscription> resource
     response = requests.post(path, headers=headers, json=body)

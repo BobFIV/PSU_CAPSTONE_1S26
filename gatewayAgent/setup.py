@@ -2,7 +2,7 @@ import random, string
 
 # Setup variables
 cse_url = 'http://localhost:8081/~/id-mn1/cse-mn1'            # The url of the CSE - use host port of 8081 for mn1, 8080 for in
-notificationURIs = ['http://localhost:9000']                # The notification target
+notificationURIs = ['http://host.docker.internal:9000']                # The notification target
 application_name = 'gatewayAE'                         # The name of the application entity
 application_path = cse_url + '/' + application_name         # The path of the application entity
 subscription_name = 'gatewaySubscription'                        # The name of the subscription

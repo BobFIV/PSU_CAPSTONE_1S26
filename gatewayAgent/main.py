@@ -53,17 +53,17 @@ if create_container(originator, application_path, container_name)==False:
     exit()
 
 # Create a <subscription> resource under the <container> resource
-if create_subscription(application_name, container_path, subscription_name, notificationURIs) == False:
-    unregister_AE(application_name)
+if create_subscription(originator, container_path, subscription_name, notificationURIs) == False:
+    unregister_AE(originator, application_name)
     stop_notification_receiver()
     exit()
 
 # Retrieve the <container> resource
-if retrieve_AE(application_name, application_path) == False:
-    unregister_AE(application_name)
+if retrieve_AE(originator, application_path) == False:
+    unregister_AE(originator, application_name)
     stop_notification_receiver()
     exit()
 
 # Unregister the AE and stop the notification server
-unregister_AE(application_name)
+unregister_AE(originator, application_name)
 stop_notification_receiver()
