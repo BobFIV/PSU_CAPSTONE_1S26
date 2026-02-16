@@ -1,0 +1,82 @@
+@startuml
+hide footbox
+
+participant GA as "GatewayAgent"
+participant MN as "MN-CSE (ACME)"
+participant IN as "IN-CSE (ACME)"
+participant CB as "Orchestrator Application"
+
+note over GA,CB
+all will run on host machine in separate docker containers
+end note
+
+
+note over CB
+Orchestrator Application registers with IN-CSE on startup
+originator: Sorchestrator
+notification URL: NOT NEEDED YET
+end note
+
+
+
+GA -> IN: CREATE AE
+
+GA -> IN: CREATE subscription to Sgateway <AE>
+
+note over CB
+Orchestrator creates <container>
+resource (and <contentInstance>) 
+describing the Gateway(MN-CSE)
+end note
+
+CB -> IN: CREATE Sorchestrator/gateway (container)
+IN -> GA: NOTIFY of new Gateway resource
+
+CB -> IN: CREATE Sorchestrator/gateway/data (MN-CSE name)
+CB -> IN: CREATE Sorchestrator/gateway/cmd (execute)
+
+
+note over GA
+Gateway Agent creates 
+<subscription> to the gateway resource
+end note
+
+GA --> IN: CREATE subscription to Sorchestrator/gateway/cmd resource
+
+IN --> GA: NOTIFY of cmd resource creation
+
+GA -> IN : Gateway Agent retrieves data 
+IN --> GA: 200 OK, data (MN-CSE name)
+
+note over GA
+start MN-CSE in docker
+ini config modified to 
+register with IN-CSE on startup
+end note
+
+note over GA
+Gateway Agent registers with MN-CSE 
+end note
+
+GA -> MN: CREATE AE
+
+note over GA,IN
+Gateway Agent updates <subscription> to Sgateway <AE>
+so that notifications go to the Gateway Agent throught the MN-CSE
+end note    
+GA -> IN: UPDATE subscription(s) to Sgateway <AE>
+
+note over CB
+Orchestrator creates <contentInstance> 
+with new data (change port)
+in Sorchestrator/gateway/data resource
+end note
+
+CB -> IN: CREATE contentInstance in Sorchestrator/gateway/data resource
+note over MN,IN
+IN-CSE (through the MN-CSE) notifies 
+Gateway Agent of new data
+end note
+IN -> GA: NOTIFY of new data (new port)
+
+@enduml
