@@ -13,6 +13,21 @@ docker run -it -p 8080:8080 -e hostIPAddress=localhost -v ./acme_in:/data --name
 docker ps
 ~~~
 
+## Resource tree
+```
+<CSEBase> "IN-CSE"
+└── <AE> "Cgatewayagent"                                 [poa = "http://localhost:9090"]
+        ├── <Container> "cmd", mni = 1
+        │   └── <ContentInstance> (latest)
+        │   └── <Subscription> "sub"                     [nu = "CGatewayAE"]
+        └── <Container> "data"
+            ├── <ContentInstance> (oldest)
+            ├── <ContentInstance>
+            ├── ...
+            └── <ContentInstance> (latest)
+
+```
+
 ## MSC
 PlantUML source file: [media/msc.puml](media/msc.puml)
 

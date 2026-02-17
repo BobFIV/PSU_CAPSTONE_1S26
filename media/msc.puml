@@ -7,76 +7,77 @@ participant IN as "IN-CSE (ACME)"
 participant CB as "Orchestrator Application"
 
 note over GA,CB
-all will run on host machine in separate docker containers
+run components on host machine in separate docker containers
 end note
 
 
-note over CB
-Orchestrator Application registers with IN-CSE on startup
-originator: Sorchestrator
-notification URL: NOT NEEDED YET
+CB -> IN: CREATE <AE> as Corchestrator
+
+GA -> IN: CREATE <AE> as Cgatewayagent
+GA -> IN: CREATE subscription to Cgatewayagent/cmd
+GA -> IN: CREATE Cgatewayagent/data (MN-CSE name)
+GA -> IN: CREATE Cgatewayagent/cmd (execute)
+
+...
+
+note left CB
+Orchestrator subscribes to <Cgatewayagent> resources : TBC
 end note
 
 
 
-GA -> IN: CREATE AE
-
-GA -> IN: CREATE subscription to Sgateway <AE>
-
-note over CB
+note left CB
 Orchestrator creates <container>
 resource (and <contentInstance>) 
 describing the Gateway(MN-CSE)
 end note
 
-CB -> IN: CREATE Sorchestrator/gateway (container)
-IN -> GA: NOTIFY of new Gateway resource
+CB -> IN: CREATE Cgatewayagent/data/<cin> (MN-CSE name)
+CB -> IN: CREATE Cgatewayagent/cmd/<cin> (execute)
 
-CB -> IN: CREATE Sorchestrator/gateway/data (MN-CSE name)
-CB -> IN: CREATE Sorchestrator/gateway/cmd (execute)
-
-
-note over GA
-Gateway Agent creates 
-<subscription> to the gateway resource
-end note
-
-GA --> IN: CREATE subscription to Sorchestrator/gateway/cmd resource
-
-IN --> GA: NOTIFY of cmd resource creation
-
-GA -> IN : Gateway Agent retrieves data 
-IN --> GA: 200 OK, data (MN-CSE name)
+IN -> GA: NOTIFY of new Gateway resource Cgatewayagent/cmd
+GA -> IN : Gateway Agent retrieves Cgatewayagent/cmd/<contentInstance>
 
 note over GA
-start MN-CSE in docker
-ini config modified to 
-register with IN-CSE on startup
+Checks the command == 'execute'
+Deletes Cgatewayagent/cmd/<contentInstance>
 end note
+
+GA -> IN : Gateway Agent retrieves Cgatewayagent/data/<contentInstance> 
 
 note over GA
-Gateway Agent registers with MN-CSE 
+modify config.ini with the 
+mn-cse name and id 
+(re)start MN-CSE in docker
 end note
 
-GA -> MN: CREATE AE
-
-note over GA,IN
-Gateway Agent updates <subscription> to Sgateway <AE>
-so that notifications go to the Gateway Agent throught the MN-CSE
-end note    
-GA -> IN: UPDATE subscription(s) to Sgateway <AE>
-
-note over CB
-Orchestrator creates <contentInstance> 
-with new data (change port)
-in Sorchestrator/gateway/data resource
+note over GA, MN
+Gateway Agent registers with MN-CSE
+(this is a second registration - 
+use a different <AE> name) 
 end note
 
-CB -> IN: CREATE contentInstance in Sorchestrator/gateway/data resource
+GA -> MN: CREATE <AE> as GatewayAgentMN
+
+=== steady state ===
+
+note left CB
+Orchestrator changes the MN-CSE configuration
+creates <contentInstance> with new data (change port)
+in Cgatewayagent/gateway/data resource
+end note
+
+CB -> IN: CREATE contentInstance in Cgatewayagent/gateway/data resource
 note over MN,IN
-IN-CSE (through the MN-CSE) notifies 
-Gateway Agent of new data
+IN-CSE notifies Gateway Agent of new data
 end note
 IN -> GA: NOTIFY of new data (new port)
+
+
+note over GA
+modify config.ini with the 
+mn-cse name and id 
+(re)start MN-CSE in docker
+end note
 
 @enduml
