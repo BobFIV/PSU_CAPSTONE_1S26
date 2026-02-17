@@ -38,14 +38,14 @@ CB -> IN: CREATE Cgatewayagent/cmd/<cin> (execute)
 IN -> GA: NOTIFY of new Gateway resource Cgatewayagent/cmd
 GA -> IN : Gateway Agent retrieves Cgatewayagent/cmd/<contentInstance>
 
-note over GA
+note right GA
 Checks the command == 'execute'
 Deletes Cgatewayagent/cmd/<contentInstance>
 end note
 
 GA -> IN : Gateway Agent retrieves Cgatewayagent/data/<contentInstance> 
 
-note over GA
+note right GA
 modify config.ini with the 
 mn-cse name and id 
 (re)start MN-CSE in docker
@@ -74,7 +74,7 @@ end note
 IN -> GA: NOTIFY of new data (new port)
 
 
-note over GA
+note right GA
 modify config.ini with the 
 mn-cse name and id 
 (re)start MN-CSE in docker
