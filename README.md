@@ -19,7 +19,7 @@ docker ps
 └── <AE> "Cgatewayagent"                                 [poa = "http://localhost:9090"]
         ├── <Container> "cmd", mni = 1
         │   └── <ContentInstance> (latest)
-        │   └── <Subscription> "sub"                     [nu = "CGatewayAE"]
+        │   └── <Subscription> "sub"                     [nu = "Cgatewayagent"]
         └── <Container> "data"
             ├── <ContentInstance> (oldest)
             ├── <ContentInstance>
