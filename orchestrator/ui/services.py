@@ -79,6 +79,7 @@ def initialize_AE_only(application_name):
         #atexit.register(stop_notification_receiver)
         atexit.register(lambda: unregister_AE(application_name))
         registration_status = f"AE '{application_name}' registered successfully"
+        print(registration_status)
         final_registration_status = "Orchestrator AE successfully created"
         return True
 
