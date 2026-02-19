@@ -1,6 +1,7 @@
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Thread
 import json
+from processData import process
 
 notification_receiver = None
 
@@ -18,6 +19,8 @@ class NotificationReceiver(BaseHTTPRequestHandler):
         else:
             print('<= Subscription notification request received')
         print(f'<= {data}')
+
+        process(data)
 
         self.send_response(200)
         self.send_header('X-M2M-RSC', '2000')
