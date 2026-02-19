@@ -2,17 +2,21 @@
 from setup import *                                     
 
 # Import AE functions
-from ae import register_AE, unregister_AE, retrieve_AE
+from ae import register_AE, unregister_AE
 
-from container import create_container
+from container import create_container, retrieve_container
 
 # Import subscription function
 from subscription import create_subscription 
 
-from contentInstance import create_contentInstance
+from contentInstance import create_contentInstance, retrieve_contentinstance
 
 # Import notification function
 from notificationReceiver import run_notification_receiver, stop_notification_receiver
+
+import atexit
+
+
 
 # import sys
 
@@ -57,6 +61,12 @@ from notificationReceiver import run_notification_receiver, stop_notification_re
 
 # Start the notification server first
 run_notification_receiver()
+register_AE('Corchestrator', 'orchestrator')
+create_container('Corchestrator', cse_url+'/orchestrator', 'cmd')
+create_container('Corchestrator', cse_url+'/orchestrator', 'data')
+
+#gAE subscribe itself
+#oAE creates cin to gateway container
 
 # Register an AE
 if register_AE(originator, application_name) == False:
@@ -73,13 +83,30 @@ if create_container(originator, application_path, 'data')==False:
     exit()
 
 # Create a <subscription> resource under the <container> resource
-if create_subscription(originator, application_path, subscription_name, notificationURIs) == False:
+if create_subscription(originator, application_path+'/cmd', subscription_name, notificationURIs) == False:
     unregister_AE(originator, application_name)
     stop_notification_receiver()
     exit()
 
+
+
+
+
+
+if create_contentInstance('Corchestrator', cse_url+'/orchestrator/data', 'acme-mn1')==False: #to orchestrator
+    stop_notification_receiver()
+    exit() 
+
+if create_contentInstance('Corchestrator', cse_url+'/orchestrator/cmd', 'execute')==False:
+    stop_notification_receiver()
+    exit() 
+
+create_contentInstance(originator, application_path+'/cmd', 'execute') #assume orchestrator-> gateway
+create_contentInstance(originator, application_path+'/data', 'acme-mn1')
+
+
 # Retrieve the <container> resource
-if retrieve_AE(originator, application_path) == False:
+if retrieve_contentinstance(originator, application_path+'/cmd') == False:
     unregister_AE(originator, application_name)
     stop_notification_receiver()
     exit()
@@ -87,3 +114,9 @@ if retrieve_AE(originator, application_path) == False:
 # Unregister the AE and stop the notification server
 # unregister_AE(originator, application_name)
 # stop_notification_receiver()
+
+
+atexit.register(lambda:unregister_AE(originator, application_name))
+atexit.register(lambda:unregister_AE('Corchestrator', 'orchestrator'))
+atexit.register(lambda:stop_notification_receiver())
+
