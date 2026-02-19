@@ -5,7 +5,7 @@ from .setup import *
 from .ae import register_AE, unregister_AE
 from .container import create_container
 from .subscription import create_subscription
-from .contentInstance import create_contentInstance
+from .contentInstance import create_contentInstance, create_contentInstance_with_response
 from .notificationReceiver import run_notification_receiver, stop_notification_receiver
 
 registration_status = "Not connected to IN-CSE" #can help in potentially debuging information in terminal
@@ -71,13 +71,13 @@ def initialize_AE_only(application_name):
         #run_notification_receiver()
         #registration_status = "Notification server started"
 
-        # Register AE only
-        if not register_AE(application_name):
+        # Register AE only (use CAdmin for first AE create; ACME often requires admin originator)
+        if not register_AE(originator_ae_create):
             registration_status = f"AE registration failed for '{application_name}'"
             #stop_notification_receiver()
             return False
         #atexit.register(stop_notification_receiver)
-        atexit.register(lambda: unregister_AE(application_name))
+        atexit.register(lambda: unregister_AE(application_name, originator_ae_create))
         registration_status = f"AE '{application_name}' registered successfully"
         print(registration_status)
         final_registration_status = "Orchestrator AE successfully created"
@@ -88,4 +88,13 @@ def initialize_AE_only(application_name):
         #stop_notification_receiver()
         return False
 
-    
+
+# --- Gateway control (Orchestrator → Gateway via IN-CSE) ---
+def send_command_to_gateway(content: str) -> tuple:
+    """Create contentInstance in gatewayAgent/cmd. Uses originator_gateway_control (CAdmin) for CREATE privilege."""
+    return create_contentInstance_with_response(originator_gateway_control, gateway_cmd_path, content)
+
+
+def send_data_to_gateway(content: str) -> tuple:
+    """Create contentInstance in gatewayAgent/data. Uses originator_gateway_control (CAdmin) for CREATE privilege."""
+    return create_contentInstance_with_response(originator_gateway_control, gateway_data_path, content)

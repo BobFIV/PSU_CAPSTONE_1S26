@@ -10,13 +10,12 @@ class UiConfig(AppConfig):
         if os.environ.get('RUN_MAIN') != "true":
             return
         
-        from .services import initialize_AE_only
+        from . import services
         from .setup import application_name
-        from .services import final_registration_status
 
         try:
-            initialize_AE_only(application_name)
-            status = final_registration_status
+            services.initialize_AE_only(application_name)
+            status = services.final_registration_status  # read after call so updated value is used
             print("IN-CSE response:", status)
         except Exception as e:
             print("Error registering container:", e)

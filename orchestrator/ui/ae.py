@@ -22,7 +22,7 @@ def register_AE(originator:str) -> bool:
     # Define the <AE> resource
     body = {
         'm2m:ae': {
-            'rn': 'Corchestrator',
+            'rn': 'orchestrator',
             'api': 'Nmy-application.example.com',
             'rr': True,
             'srv': ['4']
@@ -35,29 +35,42 @@ def register_AE(originator:str) -> bool:
     # Check the response
     if response.status_code == 201:
         print('AE created successfully')
-    else:
-        print('Error creating AE: ' + str(response.status_code))
-        return False
-
-    return True
+        return True
+    if response.status_code == 403:
+        try:
+            text = (response.text or "")
+            if "already registered" in text and originator in text:
+                print("AE already exists (originator already registered on CSE)")
+                return True
+        except Exception:
+            pass
+    print('Error creating AE: ' + str(response.status_code))
+    try:
+        print('CSE response: ' + (response.text or response.reason))
+    except Exception:
+        pass
+    return False
 
 
 # Unregister AE
-def unregister_AE(application_name:str) -> bool:
+def unregister_AE(application_name: str, request_originator: str = None) -> bool:
     """ Unregister an Application Entity
 
         Args:
-            originator: The originator of the request
+            application_name: AE resource name (path segment)
+            request_originator: X-M2M-Origin for the request (default: application_name)
 
         Returns:
             bool: True if the AE was unregistered successfully, False otherwise
     """
+    if request_originator is None:
+        request_originator = application_name
 
     # Set the oneM2M headers for deleting the <AE> resource
     headers = {
-        'X-M2M-Origin': application_name,           # unique application entity identifier
-        'X-M2M-RI': randomID(),                     # unique request identifier
-        'X-M2M-RVI': '4' 
+        'X-M2M-Origin': request_originator,
+        'X-M2M-RI': randomID(),
+        'X-M2M-RVI': '4'
     }
 
     # Perform the http request to delete the <AE> resource

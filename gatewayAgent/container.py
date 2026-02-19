@@ -37,11 +37,12 @@ def create_container(originator:str, application_path:str, rn:str)->bool:
     # Check the response
     if response.status_code == 201:
         print('Container created successfully')
-    else:
-        print('Error creating Container: ' + str(response.status_code))
-        return False
-
-    return True
+        return True
+    if response.status_code == 409:
+        print('Container already exists (409), continuing')
+        return True
+    print('Error creating Container: ' + str(response.status_code))
+    return False
 
 
 def retrieve_container(originator:str, path:str) -> bool:

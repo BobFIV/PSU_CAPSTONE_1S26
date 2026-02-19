@@ -143,6 +143,21 @@
     }
     
   
+    // Call backend API: send command to Gateway (gatewayAgent/cmd)
+    async function sendCommandToGateway(command) {
+      try {
+        const res = await fetch("/api/gateway/command/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ command: command || "execute" }),
+        });
+        const json = await res.json();
+        return json;
+      } catch (e) {
+        return { success: false, message: String(e) };
+      }
+    }
+
     // Bind AE screen
     function bindAE(root) {
       const name = root.querySelector('input[name="ae_name"]');
@@ -160,9 +175,20 @@
       if (state.ae.deployedAction) markSelected(root, state.ae.deployedAction);
   
       root.querySelectorAll(".wfAction").forEach((btn) => {
-        btn.addEventListener("click", () => {
+        btn.addEventListener("click", async () => {
           state.ae.deployedAction = btn.dataset.action;
           markSelected(root, state.ae.deployedAction);
+
+          if (btn.dataset.action === "deploy_sample_ae") {
+            setStatus("Sending execute command to Gateway…");
+            const result = await sendCommandToGateway("execute");
+            if (result.success) {
+              enableBackToTopology("Command sent to Gateway • click \"Back to Topology\"");
+            } else {
+              setStatus("Failed: " + (result.message || "Unknown") + (result.cse_response ? " (" + result.cse_response.slice(0, 80) + "…)" : ""));
+            }
+            return;
+          }
   
           enableBackToTopology(`AE deployed (${btn.textContent.trim()}) • click "Back to Topology"`);
         });

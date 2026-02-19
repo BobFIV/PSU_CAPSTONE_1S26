@@ -33,8 +33,21 @@ def create_contentInstance(originator:str, path:str, content:str) -> bool:
     # Check the response
     if response.status_code == 201:
         print('ContentInstance created successfully')
-    else:
-        print('Error creating ContentInstance: ' + str(response.status_code))
-        return False
+        return True
+    print('Error creating ContentInstance: ' + str(response.status_code), response.text[:200] if response.text else "")
+    return False
 
-    return True
+
+def create_contentInstance_with_response(originator: str, path: str, content: str) -> tuple:
+    """Create contentInstance and return (success, status_code, response_text) for API error reporting."""
+    headers = {
+        'Content-Type': 'application/json;ty=4',
+        'X-M2M-Origin': originator,
+        'X-M2M-RI': randomID(),
+        'X-M2M-RVI': '4'
+    }
+    body = {'m2m:cin': {'con': content}}
+    response = requests.post(path, headers=headers, json=body)
+    if response.status_code == 201:
+        return True, response.status_code, (response.text or "")
+    return False, response.status_code, (response.text or response.reason or "")

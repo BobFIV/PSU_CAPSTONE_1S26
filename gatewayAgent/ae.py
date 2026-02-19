@@ -37,11 +37,17 @@ def register_AE(originator:str, application_name: str) -> bool:
     # Check the response
     if response.status_code == 201:
         print('AE created successfully')
-    else:
-        print('Error creating AE: ' + str(response.status_code))
-        return False
-
-    return True
+        return True
+    if response.status_code == 403:
+        try:
+            text = (response.text or "")
+            if "already registered" in text and originator in text:
+                print("AE already exists (originator already registered on CSE)")
+                return True
+        except Exception:
+            pass
+    print('Error creating AE: ' + str(response.status_code))
+    return False
 
 
 # Unregister AE
