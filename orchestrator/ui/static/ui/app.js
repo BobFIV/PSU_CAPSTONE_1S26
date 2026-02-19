@@ -14,7 +14,7 @@
   
     const state = {
       host: { ip: "", port: "", extra: "", deployedAction: null },
-      cse: { name: "", extra: "", deployedAction: null },
+      cse: { name: "", port: "", extra: "", deployedAction: null },
       ae: { name: "", extra: "", deployedAction: null },
     };
   
@@ -111,28 +111,37 @@
     // Bind CSE screen
     function bindCSE(root) {
       const name = root.querySelector('input[name="cse_name"]');
+      const port = root.querySelector('input[name="cse_port"]');
       const extra = root.querySelector('input[name="cse_extra"]');
-  
+    
       name.value = state.cse.name;
+      port.value = state.cse.port;
       extra.value = state.cse.extra;
-  
+    
       name.addEventListener("input", () => {
         state.cse.name = name.value;
         refreshTopologyText();
       });
+    
+      port.addEventListener("input", () => {
+        state.cse.port = port.value;
+        refreshTopologyText();
+      });
+    
       extra.addEventListener("input", () => (state.cse.extra = extra.value));
-  
+    
       if (state.cse.deployedAction) markSelected(root, state.cse.deployedAction);
-  
+    
       root.querySelectorAll(".wfAction").forEach((btn) => {
         btn.addEventListener("click", () => {
           state.cse.deployedAction = btn.dataset.action;
           markSelected(root, state.cse.deployedAction);
-  
+    
           enableBackToTopology(`CSE deployed (${btn.textContent.trim()}) • click "Back to Topology"`);
         });
       });
     }
+    
   
     // Bind AE screen
     function bindAE(root) {
