@@ -1,4 +1,5 @@
 import requests
+import atexit
 
 from .setup import *
 from .ae import register_AE, unregister_AE
@@ -47,7 +48,8 @@ def initalize_Full_startup(application_name, application_path, container_name, c
             unregister_AE(application_name)
             stop_notification_receiver()
             return False
-        
+        atexit.register(stop_notification_receiver)
+        atexit.register(lambda: unregister_AE(application_name))
         registration_status = "ContentInstance created"
 
         # Optionally: keep notification server running
@@ -74,7 +76,8 @@ def initialize_AE_only(application_name):
             registration_status = f"AE registration failed for '{application_name}'"
             stop_notification_receiver()
             return False
-
+        #atexit.register(stop_notification_receiver)
+        atexit.register(lambda: unregister_AE(application_name))
         registration_status = f"AE '{application_name}' registered successfully"
         final_registration_status = "Orchestrator AE successfully created"
         return True
