@@ -37,7 +37,7 @@ def create_subscription(originator:str, path:str, rn:str, notificationURIs:list[
     }
 
     # Perform the http request to create the <subscription> resource
-    response = requests.post(path, headers=headers, json=body)
+    response = requests.post(path+'/cmd', headers=headers, json=body)
 
     # Check the response
     if response.status_code == 201:

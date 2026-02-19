@@ -1,7 +1,7 @@
-from setup import Cfg, randomID
+from setup import cse_url, randomID
 import requests
 
-def register_AE(cfg:Cfg, originator:str, application_name: str) -> bool:
+def register_AE(originator:str, application_name: str) -> bool:
     """ Register an Application Entity
 
         Args:
@@ -31,7 +31,7 @@ def register_AE(cfg:Cfg, originator:str, application_name: str) -> bool:
 
 
     # Perform the http request to create the <AE> resource
-    response = requests.post(cfg.cse_url, headers=headers, json=body)
+    response = requests.post(cse_url, headers=headers, json=body)
 
 
     # Check the response
@@ -45,7 +45,7 @@ def register_AE(cfg:Cfg, originator:str, application_name: str) -> bool:
 
 
 # Unregister AE
-def unregister_AE(cfg:Cfg, originator, application_name:str) -> bool:
+def unregister_AE(originator, application_name:str) -> bool:
     """ Unregister an Application Entity
 
         Args:
@@ -63,7 +63,7 @@ def unregister_AE(cfg:Cfg, originator, application_name:str) -> bool:
     }
 
     # Perform the http request to delete the <AE> resource
-    response = requests.delete(cfg.cse_url + '/' + application_name, headers=headers)
+    response = requests.delete(cse_url + '/' + application_name, headers=headers)
 
     # Check the response
     if response.status_code == 200:
@@ -101,34 +101,3 @@ def retrieve_AE(originator:str, path:str) -> bool:
 
     return True
 
-
-
-def create_container(originator:str, application_path:str, rn:str)->bool:
-    # Set the oneM2M headers for retrieving the <AE> resource
-    headers = {
-        'Content-Type': 'application/json;ty=3',         # Encoding
-        'X-M2M-Origin': originator,                 # unique application entity identifier
-        'X-M2M-RI': randomID(),                     # unique request identifier
-        'X-M2M-RVI': '4' 
-    }
-
-    # Define the <AE> resource
-    body = {
-        'm2m:cnt': {
-            'rn': rn
-        }
-    }
-
-    # Perform the http request to create the container resource
-    response = requests.post(application_path, headers=headers, json=body)
-
-    # Check the response
-    if response.status_code == 201:
-        print('Container created successfully')
-    else:
-        print('Error creating Container: ' + str(response.status_code))
-        return False
-
-    return True
-
-    
