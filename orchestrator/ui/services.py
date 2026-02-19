@@ -74,7 +74,7 @@ def initialize_AE_only(application_name):
         # Register AE only
         if not register_AE(application_name):
             registration_status = f"AE registration failed for '{application_name}'"
-            stop_notification_receiver()
+            #stop_notification_receiver()
             return False
         #atexit.register(stop_notification_receiver)
         atexit.register(lambda: unregister_AE(application_name))
@@ -84,7 +84,7 @@ def initialize_AE_only(application_name):
 
     except Exception as e:
         registration_status = f"Error registering AE: {e}"
-        stop_notification_receiver()
+        #stop_notification_receiver()
         return False
 
     

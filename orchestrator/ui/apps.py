@@ -7,7 +7,7 @@ class UiConfig(AppConfig):
 
     def ready(self):
         #prevent double run in dev server
-        if os.environ.get('RUN_MAIN') != True:
+        if os.environ.get('RUN_MAIN') != "true":
             return
         
         from .services import initialize_AE_only

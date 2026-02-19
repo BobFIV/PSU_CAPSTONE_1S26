@@ -1,5 +1,5 @@
 import requests
-from setup import randomID
+from .setup import randomID
 
 def create_subscription(originator:str, path:str, rn:str, notificationURIs:list[str]) -> bool:
     """ Create a <subscription> resource

@@ -1,4 +1,4 @@
-from setup import cse_url, randomID
+from .setup import cse_url, randomID
 import requests
 
 def register_AE(originator:str) -> bool:
@@ -22,7 +22,7 @@ def register_AE(originator:str) -> bool:
     # Define the <AE> resource
     body = {
         'm2m:ae': {
-            'rn': 'CMyApplication',
+            'rn': 'Corchestrator',
             'api': 'Nmy-application.example.com',
             'rr': True,
             'srv': ['4']

@@ -1,5 +1,5 @@
 import requests
-from setup import randomID
+from .setup import randomID
 
 def create_contentInstance(originator:str, path:str, content:str) -> bool:
     """ Create a <container> resource

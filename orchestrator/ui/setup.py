@@ -2,7 +2,7 @@ import random, string
 
 # Setup variables
 cse_url = 'http://localhost:8080/~/id-in/cse-in'                  # The url of the CSE
-notificationURIs = ['http://localhost:7070']                # The notification target
+notificationURIs = ['http://host.docker.internal:7070']                # The notification target
 application_name = 'Corchestrator'                         # The name of the application entity
 application_path = cse_url + '/' + application_name         # The path of the application entity
 container_name = 'myContainer'                              # The name of the container
