@@ -10,12 +10,13 @@ class UiConfig(AppConfig):
         if os.environ.get('RUN_MAIN') != True:
             return
         
-        from .services import create_starter_AE
-        from . import services
+        from .services import initialize_AE_only
+        from .setup import application_name
+        from .services import final_registration_status
 
         try:
-            status = create_starter_AE()
-            services.registration_status = "Successful Startup" #this shows that an AE was created
+            initialize_AE_only(application_name)
+            status = final_registration_status
             print("IN-CSE response:", status)
         except Exception as e:
             print("Error registering container:", e)
