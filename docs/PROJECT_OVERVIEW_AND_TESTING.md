@@ -194,9 +194,45 @@ curl -s http://127.0.0.1:8000/api/status/
 
 - `registration_status`, `cse_url` 이 JSON으로 나오면 정상.
 
+**테스트 D – MN-CSE 이름을 Gateway data로 보내기 (Add CSE 화면)**
+
+1. 터미널 1·2·3이 위 표대로 떠 있는 상태에서 진행.
+2. 브라우저 **http://127.0.0.1:8000/** → 왼쪽 **Add CSE** 클릭.
+3. **CSE Name** 입력란에 MN-CSE 이름 입력 (예: `acme-mn2`).
+4. **Deploy CSE ACME *** 버튼 클릭.
+5. 상태란에 **"MN-CSE name sent to Gateway"** 나오면 성공.
+6. **터미널 3 (Gateway Agent)** 에 `<= Subscription notification request received` 및 `[processData] Received data: acme-mn2` (또는 입력한 값) 가 찍히면 Gateway가 data 알림을 받은 것.
+
+**curl로 같은 동작 테스트:**
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/gateway/data/ -H "Content-Type: application/json" -d '{"data":"acme-mn2"}'
+```
+
+- `{"success": true, "message": "Data sent"}` 이고 터미널 3에 알림 로그가 나오면 성공.
+
+**테스트 E – Orchestrator가 gatewayAgent/data 구독으로 알림 받기**
+
+1. Django(터미널 2) 기동 시 로그에 **"Orchestrator subscribed to gatewayAgent/data (notifications on port 7070)"** 가 있으면 구독 성공.
+2. 위 **테스트 D** 또는 curl로 `gatewayAgent/data`에 content instance를 만들면, **터미널 2 (Orchestrator)** 에 `<= Subscription notification request received` 및 JSON 페이로드가 찍힘 (Orchestrator가 7070으로 NOTIFY 수신).
+
 ---
 
-## 5. 알려진 이슈·참고
+## 5. 코드 위치 요약 (어디에 어떻게 넣었는지)
+
+| 기능 | 코드 위치 | 설명 |
+|------|-----------|------|
+| MN-CSE 이름 → Gateway data (UI) | `orchestrator/ui/static/ui/app.js` | `sendDataToGateway()`, `bindCSE()` 안 `deploy_cse_acme` 클릭 시 `fetch("/api/gateway/data/", { body: JSON.stringify({ data: mnCseName }) })` |
+| MN-CSE 이름 → Gateway data (API) | `orchestrator/ui/api_views.py` | `api_gateway_data()` → `services.send_data_to_gateway(content)` |
+| Gateway data에 contentInstance 생성 | `orchestrator/ui/services.py` | `send_data_to_gateway(content)` → `create_contentInstance_with_response(..., gateway_data_path, content)` |
+| Orchestrator가 gatewayAgent/data 구독 | `orchestrator/ui/services.py` | `subscribe_to_gateway_data()`: `run_notification_receiver()` 후 `create_subscription(..., gateway_data_path, "orchestratorSubToGatewayData", notificationURIs)` |
+| Orchestrator 시작 시 구독 실행 | `orchestrator/ui/services.py` | `initialize_AE_only()` 마지막에 `subscribe_to_gateway_data()` 호출 |
+| Orchestrator 알림 수신 (7070) | `orchestrator/ui/notificationReceiver.py` | POST 수신 시 `<= Subscription notification request received` 및 payload 출력 |
+| Gateway가 data 알림 처리 | `gatewayAgent/processData.py` | `process(data)` 에서 `con` 이 "execute"가 아니면 `[processData] Received data: ...` 출력 |
+
+---
+
+## 6. 알려진 이슈·참고
 
 - **Orchestrator 먼저 vs Gateway 먼저:** 둘 다 AE `orchestrator`를 만들 수 있어서, 순서에 따라 한쪽에서 409가 발생할 수 있음. 409 시 “already exists”로 간주하고 진행하도록 한쪽에서 처리하면 편함.
 - **알림 URI:** Gateway는 `http://host.docker.internal:9000` 사용. CSE가 Docker 안에 있으면 host.docker.internal으로 호스트의 9000에 접근. 로컬에서만 테스트할 때는 CSE·Gateway 모두 호스트에서 돌리면 `localhost:9000`으로도 동작 가능.

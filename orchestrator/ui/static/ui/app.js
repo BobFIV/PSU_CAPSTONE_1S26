@@ -108,6 +108,21 @@
       });
     }
   
+    // Send MN-CSE name (or any data) to Gateway's data container
+    async function sendDataToGateway(data) {
+      try {
+        const res = await fetch("/api/gateway/data/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ data: data || "acme-mn1" }),
+        });
+        const json = await res.json();
+        return json;
+      } catch (e) {
+        return { success: false, message: String(e) };
+      }
+    }
+
     // Bind CSE screen
     function bindCSE(root) {
       const name = root.querySelector('input[name="cse_name"]');
@@ -133,9 +148,21 @@
       if (state.cse.deployedAction) markSelected(root, state.cse.deployedAction);
     
       root.querySelectorAll(".wfAction").forEach((btn) => {
-        btn.addEventListener("click", () => {
+        btn.addEventListener("click", async () => {
           state.cse.deployedAction = btn.dataset.action;
           markSelected(root, state.cse.deployedAction);
+
+          if (btn.dataset.action === "deploy_cse_acme") {
+            const mnCseName = (state.cse.name || "acme-mn1").trim();
+            setStatus("Sending MN-CSE name to Gateway data…");
+            const result = await sendDataToGateway(mnCseName);
+            if (result.success) {
+              enableBackToTopology("MN-CSE name sent to Gateway • click \"Back to Topology\"");
+            } else {
+              setStatus("Failed: " + (result.message || "Unknown") + (result.cse_response ? " (" + result.cse_response.slice(0, 80) + "…)" : ""));
+            }
+            return;
+          }
     
           enableBackToTopology(`CSE deployed (${btn.textContent.trim()}) • click "Back to Topology"`);
         });

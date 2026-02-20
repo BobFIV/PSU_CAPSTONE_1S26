@@ -37,8 +37,9 @@ def create_subscription(originator:str, path:str, rn:str, notificationURIs:list[
     # Check the response
     if response.status_code == 201:
         print('Subscription created successfully')
-    else:
-        print('Error creating subscription: ' + str(response.status_code))
-        return False
-
-    return True
+        return True
+    if response.status_code == 409:
+        print('Subscription already exists (409), continuing')
+        return True
+    print('Error creating subscription: ' + str(response.status_code))
+    return False
