@@ -1,5 +1,8 @@
 import random, string
 from dataclasses import dataclass
+# from queue import Queue
+
+# notify_q=Queue()
 
 # Setup variables
 cse_url = 'http://localhost:8080/~/id-in/cse-in'            # The url of the CSE - use host port of 8081 for mn1, 8080 for in
@@ -8,6 +11,7 @@ application_name = 'gatewayAgent'                         # The name of the appl
 application_path = cse_url + '/' + application_name         # The path of the application entity
 subscription_name = 'gatewaySubscription'                        # The name of the subscription
 originator = 'CgatewayAgent'
+
 # container_name='cmd'
 # container_path=application_path+'/'+container_name
 

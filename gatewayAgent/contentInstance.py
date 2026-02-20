@@ -1,5 +1,5 @@
 import requests
-from setup import randomID
+from setup import *
 
 def create_contentInstance(originator:str, path:str, content:str) -> bool:
     """ Create a <container> resource
@@ -40,7 +40,7 @@ def create_contentInstance(originator:str, path:str, content:str) -> bool:
     return True
 
 
-def retrieve_contentinstance(originator:str, path:str) -> bool:
+def retrieve_contentinstance(originator:str, path:str) -> dict:
     """ Retrieve a container
 
         Args:
@@ -54,15 +54,37 @@ def retrieve_contentinstance(originator:str, path:str) -> bool:
         'X-M2M-RI': randomID(),                     # unique request identifier
         'X-M2M-RVI': '4' 
     }
+    # data=notify_q.get()
+    
+    # cin=data['m2m:sgn']['nev']['rep']['m2m:cin']
 
+ 
     response = requests.get(path, headers=headers) 
-    print("THIS IS RESPONSE CIN", response.text, response.json(), response.url)
+    cin=response.json()['m2m:cin']
+    # print("THIS IS RESPONSE CIN", response.text, response.json(), response.url)
     # Check the response
+
     if response.status_code == 200:
         print('Contentinstance retrieved successfully')
     else:
         print('Error retrieving contentinstance: ' + str(response.status_code))
-        return False
+        return 
 
-    return True
+    return cin
+
+
     
+def delete_contentinstance(url:str)->bool:
+    h = {
+            "X-M2M-Origin": originator,
+            "X-M2M-RI": randomID(),
+            "X-M2M-RVI": "4",
+            "Accept": "application/json",
+        }
+    r=requests.delete(url, headers=h)
+    
+    if r.status_code == 200:
+        print('Contentinstance deleted successfully')
+    else:
+        print('Error deleting contentinstance: ' + str(r.status_code))
+        return False

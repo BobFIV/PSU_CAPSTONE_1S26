@@ -25,7 +25,7 @@ def create_subscription(originator:str, path:str, rn:str, notificationURIs:list[
         'm2m:sub': {
             'rn': rn,
             'enc': {
-                'net':[1,2,3,4]
+                'net':[3]
                 # 'om': [ {                           # Enable operation monitoring
                 #     'ops' : 2,                      # Monitor RETRIEVE operations
                 #     'org': originator               # Originator of the operation

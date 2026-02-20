@@ -1,7 +1,8 @@
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Thread
 import json
-from processData import process
+from setup import *
+
 
 notification_receiver = None
 
@@ -18,9 +19,15 @@ class NotificationReceiver(BaseHTTPRequestHandler):
             print('<= Verification notification request received')
         else:
             print('<= Subscription notification request received')
+            # notify_q.put(data) #this is real
         print(f'<= {data}')
 
-        process(data)
+        # cin=process(data)
+        # if cin['con']=='execute':
+        
+        
+
+        # retrieve_contentinstance(originator, application_path+'/cmd')
 
         self.send_response(200)
         self.send_header('X-M2M-RSC', '2000')
