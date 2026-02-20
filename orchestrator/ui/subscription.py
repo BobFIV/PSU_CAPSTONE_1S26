@@ -1,5 +1,5 @@
 import requests
-from setup import randomID
+from .setup import randomID
 
 def create_subscription(originator:str, path:str, rn:str, notificationURIs:list[str]) -> bool:
     """ Create a <subscription> resource
@@ -25,13 +25,8 @@ def create_subscription(originator:str, path:str, rn:str, notificationURIs:list[
         'm2m:sub': {
             'rn': rn,
             'enc': {
-                'net':[3]
-                # 'om': [ {                           # Enable operation monitoring
-                #     'ops' : 2,                      # Monitor RETRIEVE operations
-                #     'org': originator               # Originator of the operation
-                # } ],
+                'net': [3]                          # Event Type: Create Direct Child
             },
-            'nct': 1,
             'nu': notificationURIs
         }
     }

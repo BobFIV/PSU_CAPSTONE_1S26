@@ -24,7 +24,7 @@ participant CB as Callback Server
 2. Gateway Agent reads config
     - MN-CSE base URL: http://localhost:8080
     - originator: Sgateway
-    - notification URL: http://host.docker.internal:9000
+    - notification URL: 
 3. Start callback server on :9000
 4. AE registration
     - GA $\to$ MN: CREATE AE

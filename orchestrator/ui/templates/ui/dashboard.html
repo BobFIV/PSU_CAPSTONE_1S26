@@ -1,147 +1,196 @@
 {% extends "ui/base.html" %}
-{% block title %}Orchestration Dashboard{% endblock %}
+{% block title %}Conceptual Orchestration UI{% endblock %}
 
 {% block content %}
-<h1>Orchestration Dashboard (UI only)</h1>
-<p class="subtle">No backend calls. Buttons/forms are client-side demos.</p>
+<div class="wf">
 
-<div class="card">
-  <h2>Status</h2>
-  <div class="row">
-    <span>Orchestrator → IN-CSE Registration:</span>
-    <span id="regBadge" class="badge badge-off">Not registered</span>
-  </div>
+  <!-- looks like the blank top bar in the slides -->
+  <div class="wfTopBar" aria-hidden="true"></div>
 
-  <div class="btnRow">
-    <button type="button" class="btn" id="btnRegister">Register</button>
-    <button type="button" class="btn btnSecondary" id="btnUnregister">Unregister</button>
+  <div class="wfShell">
+    <!-- left nav (always visible like the slides) -->
+    <nav class="wfNav" aria-label="Steps">
+      <button class="wfNavItem" data-open="host" type="button">
+        <span class="wfDiamond"></span>
+        <span class="wfNavLabel">Provision<br>Host</span>
+      </button>
+
+      <button class="wfNavItem" data-open="cse" type="button">
+        <span class="wfDiamond"></span>
+        <span class="wfNavLabel">Add CSE</span>
+      </button>
+
+      <button class="wfNavItem" data-open="ae" type="button">
+        <span class="wfDiamond"></span>
+        <span class="wfNavLabel">Deploy<br>AE</span>
+      </button>
+    </nav>
+
+    <!-- main area defaults to Topology (like slide 17) -->
+    <main class="wfMain">
+      <div class="wfMainInner">
+        <div class="wfStatus" id="wfStatus">Topology view</div>
+
+        <div class="wfTopoCanvas">
+          <!-- SVG lines to look like the drawn tree -->
+          <svg class="wfTopoSvg" viewBox="0 0 1000 520" preserveAspectRatio="none" aria-hidden="true">
+            <path d="M500 170 C500 260 500 260 500 300" />
+            <path d="M500 300 C380 300 380 300 320 360" />
+            <path d="M500 300 C620 300 620 300 680 360" />
+          </svg>
+
+          <div class="wfNode wfNodeRoot" id="nodeRoot">
+            <div class="wfNodeText" id="nodeRootText">
+              <div>Local Host</div>
+              <div>IN-CSE</div>
+              <div>orchestration AE</div>
+            </div>
+          </div>
+
+          <div class="wfNode wfNodeLeaf" id="nodeLeft">
+            <div class="wfNodeText" id="nodeLeftText">
+              <div>rPI</div>
+              <div>MN-CSE</div>
+              <div>sample AE</div>
+            </div>
+          </div>
+
+          <div class="wfNode wfNodeLeaf" id="nodeRight">
+            <div class="wfNodeText" id="nodeRightText">
+              <div>rPI</div>
+              <div>MN-CSE</div>
+              <div>sample AE</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
   </div>
 </div>
 
-<div class="card">
-  <h2>Steps</h2>
-  <div class="btnRow">
-    <button type="button" class="btn" id="btnShowINCSE">IN-CSE</button>
-    <button type="button" class="btn" id="btnShowMN">Deploy MN-CSE</button>
-  </div>
-
-  <p class="subtle">
-    IN-CSE button opens a prefilled CSEBase form.<br>
-    Deploy MN-CSE opens an empty form; Apply just prints values.
-  </p>
-</div>
-
-<div class="card">
-  <h2>Output</h2>
-  <pre id="outputBox" class="output">{}</pre>
-</div>
-
-<!-- Modal: IN-CSE Form (prefilled) -->
-<div class="modal" id="modalINCSE" aria-hidden="true">
-  <div class="modalContent">
-    <div class="modalHeader">
-      <h3>IN-CSE Parameters (CSEBase)</h3>
-      <button class="iconBtn" type="button" data-close="#modalINCSE">✕</button>
+<!-- Modal (popup) -->
+<div class="wfModal" id="wfModal" aria-hidden="true">
+  <div class="wfModalPanel" role="dialog" aria-modal="true" aria-label="Orchestration step">
+    <div class="wfModalHeader">
+      <div class="wfModalTitle" id="wfModalTitle">Step</div>
+      <button class="wfX" type="button" id="wfClose" aria-label="Close">✕</button>
     </div>
 
-    <form id="formINCSE" class="form">
-      <label>
-        IN-CSE Base URL
-        <input type="text" name="in_base_url" />
-      </label>
+    <div class="wfModalBody" id="wfModalBody"></div>
 
-      <label>
-        IN cseID
-        <input type="text" name="in_cse_id" />
-      </label>
-
-      <label>
-        IN resourceName
-        <input type="text" name="in_cse_rn" />
-      </label>
-
-      <label>
-        Admin Originator
-        <input type="text" name="admin_originator" />
-      </label>
-
-      <label>
-        Orchestrator AE rn
-        <input type="text" name="ae_rn" />
-      </label>
-
-      <div class="btnRow">
-        <button type="button" class="btn" id="btnSaveINCSE">Save (UI only)</button>
-        <button type="button" class="btn btnSecondary" data-close="#modalINCSE">Close</button>
-      </div>
-    </form>
+    <div class="wfModalFooter">
+      <button class="wfFooterBtn wfFooterBtnPrimary" type="button" id="wfBackToTopo" disabled>
+        Back to Topology
+      </button>
+      <button class="wfFooterBtn" type="button" id="wfJustClose">Close</button>
+    </div>
   </div>
 </div>
 
-<!-- Modal: MN Deploy Form (empty) -->
-<div class="modal" id="modalMN" aria-hidden="true">
-  <div class="modalContent">
-    <div class="modalHeader">
-      <h3>Deploy MN-CSE (Local PC)</h3>
-      <button class="iconBtn" type="button" data-close="#modalMN">✕</button>
+<!-- Host screen -->
+<template id="tplHost">
+  <div class="wfScreen">
+    <div class="wfParam wfParamRed">
+      <div class="wfParamTitle">parameter of the HOST PLATFORM</div>
+
+      <div class="wfLines">
+        <div class="wfLine">
+          <span class="wfLineLabel">IP Address :</span>
+          <input class="wfLineInput" name="host_ip" type="text" placeholder="" />
+        </div>
+        <div class="wfLine">
+          <span class="wfLineLabel">Port :</span>
+          <input class="wfLineInput" name="host_port" type="text" placeholder="" />
+        </div>
+        <div class="wfLine">
+          <span class="wfLineLabel">... :</span>
+          <input class="wfLineInput" name="host_extra" type="text" placeholder="" />
+        </div>
+      </div>
     </div>
 
-    <form id="formMN" class="form">
-      <label>
-        Docker image (example)
-        <input type="text" name="image" placeholder="acme-cse:latest" />
-      </label>
-
-      <label>
-        Container name
-        <input type="text" name="container_name" placeholder="mn-cse" />
-      </label>
-
-      <div class="grid2">
-        <label>
-          Host port
-          <input type="number" name="host_port" placeholder="8081" />
-        </label>
-        <label>
-          Container port
-          <input type="number" name="container_port" placeholder="8080" />
-        </label>
+    <aside class="wfSide">
+      <div class="wfBox wfBoxGreen">
+        <ol class="wfList">
+          <li><button class="wfAction" data-action="deploy_local" type="button">Deploy Local *</button></li>
+          <li><button class="wfAction" data-action="deploy_remote" type="button">Deploy Remote Platform *</button></li>
+          <li><button class="wfAction" data-action="deploy_vm" type="button">Deploy VM</button></li>
+          <li><button class="wfAction" data-action="deploy_cloud" type="button">Deploy Cloud</button></li>
+        </ol>
       </div>
 
-      <div class="grid2">
-        <label>
-          MN cseID
-          <input type="text" name="mn_cse_id" placeholder="/id-mn" />
-        </label>
-        <label>
-          MN resourceName
-          <input type="text" name="mn_cse_rn" placeholder="cse-mn" />
-        </label>
+      <div class="wfBox wfBoxGreen">
+        <ol class="wfList">
+          <li>perhaps add new item for VPN</li>
+        </ol>
       </div>
-
-      <label>
-        Registrar URL (IN)
-        <input type="text" name="registrar_url" placeholder="http://localhost:8080" />
-      </label>
-
-      <div class="grid2">
-        <label>
-          Registrar cseID
-          <input type="text" name="registrar_cse_id" placeholder="/id-in" />
-        </label>
-        <label>
-          Registrar resourceName
-          <input type="text" name="registrar_cse_rn" placeholder="cse-in" />
-        </label>
-      </div>
-
-      <div class="btnRow">
-        <button type="button" class="btn" id="btnApplyMN">Apply (UI only)</button>
-        <button type="button" class="btn btnSecondary" data-close="#modalMN">Close</button>
-      </div>
-    </form>
+    </aside>
   </div>
-</div>
+</template>
+
+<!-- CSE screen -->
+<template id="tplCSE">
+  <div class="wfScreen">
+    <div class="wfParam wfParamRed">
+      <div class="wfParamTitle">parameter of the CSE</div>
+
+      <div class="wfLines">
+        <div class="wfLine">
+          <span class="wfLineLabel">CSE Name</span>
+          <input class="wfLineInput" name="cse_name" type="text" placeholder="" />
+        </div>
+      
+        <div class="wfLine">
+          <span class="wfLineLabel">Port :</span>
+          <input class="wfLineInput" name="cse_port" type="text" placeholder="" />
+        </div>
+      
+        <div class="wfLine">
+          <span class="wfLineLabel">... </span>
+          <input class="wfLineInput" name="cse_extra" type="text" placeholder="" />
+        </div>
+      </div>
+    </div>
+
+    <aside class="wfSide">
+      <div class="wfBox wfBoxGreen">
+        <ol class="wfList">
+          <li><button class="wfAction" data-action="deploy_cse_acme" type="button">Deploy CSE ACME *</button></li>
+          <li><button class="wfAction" data-action="deploy_mobius" type="button">Deploy Mobius</button></li>
+        </ol>
+      </div>
+    </aside>
+  </div>
+</template>
+
+<!-- AE screen (kept same “wireframe style”; deploy list can be edited later) -->
+<template id="tplAE">
+  <div class="wfScreen">
+    <div class="wfParam wfParamRed">
+      <div class="wfParamTitle">parameter of the AE</div>
+
+      <div class="wfLines">
+        <div class="wfLine">
+          <span class="wfLineLabel">AE Name</span>
+          <input class="wfLineInput" name="ae_name" type="text" placeholder="" />
+        </div>
+        <div class="wfLine">
+          <span class="wfLineLabel">... </span>
+          <input class="wfLineInput" name="ae_extra" type="text" placeholder="" />
+        </div>
+      </div>
+    </div>
+
+    <aside class="wfSide">
+      <div class="wfBox wfBoxGreen">
+        <ol class="wfList">
+          <li><button class="wfAction" data-action="deploy_sample_ae" type="button">Deploy Sample AE *</button></li>
+          <li><button class="wfAction" data-action="deploy_other_ae" type="button">Deploy Other AE</button></li>
+        </ol>
+      </div>
+    </aside>
+  </div>
+</template>
 
 {% endblock %}
-
