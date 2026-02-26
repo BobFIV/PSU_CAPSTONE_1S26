@@ -62,13 +62,8 @@ from init import start_CSE, update_config
 
 # Start the notification server first
 run_notification_receiver()
-register_AE('Corchestrator', 'orchestrator')
-create_container('Corchestrator', cse_url+'/orchestrator', 'cmd')
-create_container('Corchestrator', cse_url+'/orchestrator', 'data')
 
-#gAE subscribe itself
-#oAE creates cin to gateway container
-
+# Register gatewayAgent AE and create cmd/data only under gatewayAgent (orchestrator does not create these)
 # Register an AE
 if register_AE(originator, application_name) == False:
     stop_notification_receiver()
@@ -94,15 +89,8 @@ if create_subscription(originator, application_path+'/cmd', subscription_name, n
 
 
 
-if create_contentInstance('Corchestrator', cse_url+'/orchestrator/data', 'acme-mn1')==False: #to orchestrator
-    stop_notification_receiver()
-    exit() 
-
-if create_contentInstance('Corchestrator', cse_url+'/orchestrator/cmd', 'execute')==False:
-    stop_notification_receiver()
-    exit() 
-
-create_contentInstance(originator, application_path+'/cmd', 'execute') #assume orchestrator-> gateway
+# Content in gatewayAgent/cmd and gatewayAgent/data (orchestrator pushes via API; optional initial values here)
+create_contentInstance(originator, application_path+'/cmd', 'execute')
 create_contentInstance(originator, application_path+'/data', 'acme-mn1')
 
 
@@ -130,6 +118,5 @@ if start_CSE('acme-mn1')==False:
 # stop_notification_receiver()
 
 atexit.register(lambda:unregister_AE(originator, application_name))
-atexit.register(lambda:unregister_AE('Corchestrator', 'orchestrator'))
 atexit.register(lambda:stop_notification_receiver())
 

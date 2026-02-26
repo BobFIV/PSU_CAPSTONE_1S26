@@ -1,5 +1,7 @@
 from django.shortcuts import render
+from . import services
 
-# Create your views here.
 def dashboard(request):
-    return render(request, "ui/dashboard.html")
+    return render(request, "ui/dashboard.html", {
+        "registration_status": services.final_registration_status
+    })
