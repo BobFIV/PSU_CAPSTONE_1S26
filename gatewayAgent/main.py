@@ -9,13 +9,14 @@ from container import create_container, retrieve_container
 # Import subscription function
 from subscription import create_subscription 
 
-from contentInstance import create_contentInstance, retrieve_contentinstance
+from contentInstance import create_contentInstance, retrieve_contentinstance, delete_contentinstance
 
 # Import notification function
 from notificationReceiver import run_notification_receiver, stop_notification_receiver
 
 import atexit
 
+from init import start_CSE, update_config
 
 
 # import sys
@@ -93,16 +94,28 @@ create_contentInstance(originator, application_path+'/cmd', 'execute')
 create_contentInstance(originator, application_path+'/data', 'acme-mn1')
 
 
+
 # Retrieve the <container> resource
-if retrieve_contentinstance(originator, application_path+'/cmd') == False:
-    unregister_AE(originator, application_name)
-    stop_notification_receiver()
-    exit()
+cin=retrieve_contentinstance(originator, application_path+'/cmd/la')
+if cin['con']=='execute': #cmd
+    if delete_contentinstance(application_path+'/cmd/'+cin['rn'])==False:
+        pass
+
+    # unregister_AE(originator, application_name)
+    # stop_notification_receiver()
+    # exit()
+cin=retrieve_contentinstance(originator, application_path+'/data/la')
+name=cin['con']
+update_config('acme_mn1/acme.ini', name)
+if start_CSE('acme-mn1')==False:
+    pass
+
+
+
 
 # Unregister the AE and stop the notification server
 # unregister_AE(originator, application_name)
 # stop_notification_receiver()
-
 
 atexit.register(lambda:unregister_AE(originator, application_name))
 atexit.register(lambda:stop_notification_receiver())
