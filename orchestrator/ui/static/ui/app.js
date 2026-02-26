@@ -14,7 +14,7 @@
   
     const state = {
       host: { ip: "", port: "", extra: "", deployedAction: null },
-      cse: { name: "", port: "", extra: "", deployedAction: null },
+      cse: { name: "", port: "", cseID:"", extra: "", deployedAction: null },
       ae: { name: "", extra: "", deployedAction: null },
     };
   
@@ -114,7 +114,7 @@
         const res = await fetch("/api/gateway/data/", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(data),
         });
         const json = await res.json();
         return json;
@@ -126,23 +126,18 @@
     // Bind CSE screen
     function bindCSE(root) {
       const name = root.querySelector('input[name="cse_name"]');
+      const cseId = root.querySelector('input[name="cse_id"]');
       const port = root.querySelector('input[name="cse_port"]');
       const extra = root.querySelector('input[name="cse_extra"]');
-    
+ 
       name.value = state.cse.name;
+      cseId.value = state.cse.cseID;
       port.value = state.cse.port;
       extra.value = state.cse.extra;
-    
-      name.addEventListener("input", () => {
-        state.cse.name = name.value;
-        refreshTopologyText();
-      });
-    
-      port.addEventListener("input", () => {
-        state.cse.port = port.value;
-        refreshTopologyText();
-      });
-    
+ 
+      name.addEventListener("input", () => { state.cse.name = name.value; refreshTopologyText(); });
+      cseId.addEventListener("input", () => { state.cse.cseID = cseId.value; refreshTopologyText(); });
+      port.addEventListener("input", () => { state.cse.port = port.value; refreshTopologyText(); });
       extra.addEventListener("input", () => (state.cse.extra = extra.value));
     
       if (state.cse.deployedAction) markSelected(root, state.cse.deployedAction);
@@ -155,7 +150,8 @@
           if (btn.dataset.action === "deploy_cse_acme") {
             const payload = { 
               cseName: (state.cse.name || "").trim(),
-              httpPort: (state.cse.port || "").trim()
+              httpPort: (state.cse.port || "").trim(),
+              cseID: (state.cse.cseID || "").trim()
             }; 
             setStatus("Sending MN-CSE updates to Gateway data…");
             const result = await sendDataToGateway(payload);

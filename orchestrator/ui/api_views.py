@@ -41,9 +41,11 @@ def api_gateway_data(request):
         body = json.loads(request.body) if request.body else {}
         cse_name = body.get("cseName", "")
         http_port = body.get("httpPort", "")
+        cse_ID = body.get("cseID", "")
         fields = {
             "cseName": cse_name,
             "httpPort": http_port,
+            "cseID": cse_ID
         }
         lines = [
             f"{key}={value.strip()}"
