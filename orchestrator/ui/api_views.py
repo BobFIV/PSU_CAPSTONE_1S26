@@ -39,9 +39,28 @@ def api_gateway_data(request):
     """POST /api/gateway/data/ – body: {"data": "acme-mn1"}. Creates contentInstance in gatewayAgent/data with the MN-CSE name, then creates contentInstance in gatewayAgent/cmd with 'execute'."""
     try:
         body = json.loads(request.body) if request.body else {}
-        content = body.get("data", "acme-mn1")
+        cse_name = body.get("cseName", "")
+        http_port = body.get("httpPort", "")
+        fields = {
+            "cseName": cse_name,
+            "httpPort": http_port,
+        }
+        lines = [
+            f"{key}={value.strip()}"
+            for key, value in fields.items()
+            if value and value.strip()
+        ]
+        if not lines:
+            return JsonResponse({
+                "success": False,
+                "message": "No valid fields provided."
+            })
+        content = "\n".join(lines) + ("\n" if lines else "")
     except json.JSONDecodeError:
-        content = "acme-mn1"
+        return JsonResponse({
+            "success":False,
+            "message": "Invalid JSON body"
+        })
 
     ok_data, status_data, cse_data = services.send_data_to_gateway(content)
     ok_cmd, status_cmd, cse_cmd = services.send_command_to_gateway("execute")
