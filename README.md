@@ -37,4 +37,12 @@ participant CB as Callback Server
     - MN $\to$ GA: 201 Created
 
 
+## Gateway Command Handling (Current Behavior)
+
+- The Gateway Agent waits for a new contentInstance in `gatewayAgent/cmd`.
+- It executes logic only when the latest command content is `execute`.
+- After processing `execute`, only that `execute` contentInstance is deleted.
+- Any non-`execute` command (for example `noop`) is ignored and kept in the container.
+- On startup, old command history is not replayed as new work.
+
 

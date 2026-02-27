@@ -59,17 +59,24 @@ def retrieve_contentinstance(originator:str, path:str) -> dict:
     # cin=data['m2m:sgn']['nev']['rep']['m2m:cin']
 
  
-    response = requests.get(path, headers=headers) 
-    cin=response.json()['m2m:cin']
-    # print("THIS IS RESPONSE CIN", response.text, response.json(), response.url)
-    # Check the response
+    response = requests.get(path, headers=headers)
+    if response.status_code != 200:
+        # 404 on /la is expected when no contentInstance exists yet.
+        if response.status_code != 404:
+            print('Error retrieving contentinstance: ' + str(response.status_code))
+        return None
 
-    if response.status_code == 200:
-        print('Contentinstance retrieved successfully')
-    else:
-        print('Error retrieving contentinstance: ' + str(response.status_code))
-        return 
+    try:
+        cin = response.json().get('m2m:cin')
+    except Exception:
+        print('Error parsing contentinstance response')
+        return None
 
+    if not cin:
+        print('No contentinstance in response')
+        return None
+
+    print('Contentinstance retrieved successfully')
     return cin
 
 

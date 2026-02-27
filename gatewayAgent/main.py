@@ -1,122 +1,158 @@
 # Import the setup variables
-from setup import *                                     
+from setup import *
 
 # Import AE functions
 from ae import register_AE, unregister_AE
-
-from container import create_container, retrieve_container
+from container import create_container
 
 # Import subscription function
-from subscription import create_subscription 
-
-from contentInstance import create_contentInstance, retrieve_contentinstance, delete_contentinstance
+from subscription import create_subscription
+from contentInstance import retrieve_contentinstance, delete_contentinstance
 
 # Import notification function
 from notificationReceiver import run_notification_receiver, stop_notification_receiver
 
 import atexit
+import time
 
 from init import start_CSE, update_config
 
 
-# import sys
+POLL_INTERVAL_SEC = 2
 
 
+def parse_cse_name_from_data(content: str) -> str:
+    """Accept plain value or key=value lines and return cseName."""
+    if not isinstance(content, str):
+        return "acme-mn1"
 
-# if len(sys.argv)!=3:
-#     print("Format Error: python3 main.py IN/MN1/MN2 CONTAINER")
-#     sys.exit(1)
+    value = content.strip()
+    if not value:
+        return "acme-mn1"
 
-# if sys.argv[1]=='IN':
-#     cse_url = 'http://localhost:8080/~/id-in/cse-in'            # The url of the CSE - use host port of 8081 for mn1, 8080 for in
-#     notificationURIs = ['http://host.docker.internal:9000']                # The notification target
-#     application_name = 'gatewayAgent'                         # The name of the application entity
-#     application_path = cse_url + '/' + application_name         # The path of the application entity
-#     subscription_name = 'gatewaySubscription'                        # The name of the subscription
-#     originator = 'CgatewayAgent'
-#     container_name=sys.argv[2]
-#     container_path=application_path+'/'+container_name
+    fields = {}
+    for line in value.splitlines():
+        line = line.strip()
+        if not line or "=" not in line:
+            continue
+        key, parsed = line.split("=", 1)
+        fields[key.strip()] = parsed.strip()
 
-# # Setup variables
-# elif sys.argv[1]=='MN1':
-#     cse_url = 'http://localhost:8081/~/id-mn1/cse-mn1'            # The url of the CSE - use host port of 8081 for mn1, 8080 for in
-#     notificationURIs = ['http://host.docker.internal:9000']                # The notification target
-#     application_name = 'gatewayAgentMN1'                         # The name of the application entity
-#     application_path = cse_url + '/' + application_name         # The path of the application entity
-#     subscription_name = 'gatewaySubscription'                        # The name of the subscription
-#     originator = 'CgatewayAgentMN1'
-#     container_name=sys.argv[2]
-#     container_path=application_path+'/'+container_name
+    if fields.get("cseName"):
+        return fields["cseName"]
 
-# elif sys.argv[1]=='MN2':
-#     cse_url = 'http://localhost:8082/~/id-mn2/cse-mn2'            # The url of the CSE - use host port of 8081 for mn1, 8080 for in
-#     notificationURIs = ['http://host.docker.internal:9000']                # The notification target
-#     application_name = 'gatewayAgentMN2'                          # The name of the application entity
-#     application_path = cse_url + '/' + application_name         # The path of the application entity
-#     subscription_name = 'gatewaySubscription'                        # The name of the subscription
-#     originator = 'CgatewayAgentMN2'
-#     container_name=sys.argv[2]
-#     container_path=application_path+'/'+container_name
-
-# cfg=Cfg(cse_url, notificationURIs, application_name, application_path, subscription_name, originator, container_name, container_path)
-
-# Start the notification server first
-run_notification_receiver()
-
-# Register gatewayAgent AE and create cmd/data only under gatewayAgent (orchestrator does not create these)
-# Register an AE
-if register_AE(originator, application_name) == False:
-    stop_notification_receiver()
-    exit()
-
-# Create a <container> resource
-if create_container(originator, application_path, 'cmd')==False:
-    stop_notification_receiver()
-    exit()
-
-if create_container(originator, application_path, 'data')==False:
-    stop_notification_receiver()
-    exit()
-
-# Create a <subscription> resource under the <container> resource
-if create_subscription(originator, application_path+'/cmd', subscription_name, notificationURIs) == False:
-    unregister_AE(originator, application_name)
-    stop_notification_receiver()
-    exit()
+    return value
 
 
+def apply_execute_command() -> None:
+    try:
+        data_cin = retrieve_contentinstance(originator, application_path + "/data/la")
+    except Exception as e:
+        print("Failed to retrieve latest data contentInstance:", e)
+        return
+
+    if not data_cin or "con" not in data_cin:
+        print("No usable data contentInstance found; skipping execute")
+        return
+
+    cse_name = parse_cse_name_from_data(data_cin.get("con", ""))
+    print(f"Applying execute using cseName='{cse_name}'")
+
+    try:
+        update_config("acme_mn1/acme.ini", cse_name)
+    except Exception as e:
+        print("Failed to update config:", e)
+        return
+
+    if not start_CSE("acme-mn1"):
+        print("Docker start failed")
 
 
+def main() -> int:
+    run_notification_receiver()
 
+    if not register_AE(originator, application_name):
+        stop_notification_receiver()
+        return 1
 
-# Content in gatewayAgent/cmd and gatewayAgent/data (orchestrator pushes via API; optional initial values here)
-create_contentInstance(originator, application_path+'/cmd', 'execute')
-create_contentInstance(originator, application_path+'/data', 'acme-mn1')
+    if not create_container(originator, application_path, "cmd"):
+        stop_notification_receiver()
+        return 1
 
+    if not create_container(originator, application_path, "data"):
+        stop_notification_receiver()
+        return 1
 
+    if not create_subscription(originator, application_path + "/cmd", subscription_name, notificationURIs):
+        unregister_AE(originator, application_name)
+        stop_notification_receiver()
+        return 1
 
-# Retrieve the <container> resource
-cin=retrieve_contentinstance(originator, application_path+'/cmd/la')
-if cin['con']=='execute': #cmd
-    if delete_contentinstance(application_path+'/cmd/'+cin['rn'])==False:
+    atexit.register(lambda: unregister_AE(originator, application_name))
+    atexit.register(lambda: stop_notification_receiver())
+
+    # Only process commands that arrive after this process starts.
+    baseline_cmd_ct = None
+    processed_cmd_rns = set()
+    try:
+        existing_cmd = retrieve_contentinstance(originator, application_path + "/cmd/la")
+        if existing_cmd:
+            baseline_cmd_ct = existing_cmd.get("ct")
+    except Exception:
+        # If there is no existing cmd/la (or retrieval fails), just wait for the first new one.
         pass
 
-    # unregister_AE(originator, application_name)
-    # stop_notification_receiver()
-    # exit()
-cin=retrieve_contentinstance(originator, application_path+'/data/la')
-name=cin['con']
-update_config('acme_mn1/acme.ini', name)
-if start_CSE('acme-mn1')==False:
-    pass
+    print("Gateway is ready. Waiting for new Orchestrator command in gatewayAgent/cmd ...")
+    try:
+        while True:
+            try:
+                cmd_cin = retrieve_contentinstance(originator, application_path + "/cmd/la")
+            except Exception as e:
+                print("Failed to retrieve latest cmd contentInstance:", e)
+                time.sleep(POLL_INTERVAL_SEC)
+                continue
+
+            if not cmd_cin:
+                time.sleep(POLL_INTERVAL_SEC)
+                continue
+
+            cmd_rn = cmd_cin.get("rn")
+            cmd_con = cmd_cin.get("con")
+            cmd_ct = cmd_cin.get("ct")
+
+            if not cmd_rn or not cmd_ct:
+                time.sleep(POLL_INTERVAL_SEC)
+                continue
+
+            if cmd_rn in processed_cmd_rns:
+                time.sleep(POLL_INTERVAL_SEC)
+                continue
+
+            if baseline_cmd_ct is not None and cmd_ct <= baseline_cmd_ct:
+                processed_cmd_rns.add(cmd_rn)
+                time.sleep(POLL_INTERVAL_SEC)
+                continue
+
+            if cmd_con != "execute":
+                print(f"Ignoring unsupported cmd content: {cmd_con!r}")
+                processed_cmd_rns.add(cmd_rn)
+                time.sleep(POLL_INTERVAL_SEC)
+                continue
+
+            print(f"Received execute command (rn={cmd_rn})")
+            processed_cmd_rns.add(cmd_rn)
+            apply_execute_command()
+
+            cmd_url = application_path + "/cmd/" + cmd_rn
+            if delete_contentinstance(cmd_url) is False:
+                print("Failed to delete processed cmd contentInstance")
+
+            time.sleep(POLL_INTERVAL_SEC)
+    except KeyboardInterrupt:
+        print("Gateway stopped by user")
+
+    return 0
 
 
-
-
-# Unregister the AE and stop the notification server
-# unregister_AE(originator, application_name)
-# stop_notification_receiver()
-
-atexit.register(lambda:unregister_AE(originator, application_name))
-atexit.register(lambda:stop_notification_receiver())
-
+if __name__ == "__main__":
+    raise SystemExit(main())
