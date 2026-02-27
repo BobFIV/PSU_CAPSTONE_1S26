@@ -4,3 +4,12 @@
 def process(data:str):
     return data['m2m:sgn']['nev']['rep']['m2m:cin']
 
+def parse_cin(data):
+    #"csename=df"
+    lst=data.split('\n')
+    d={}
+    for field in lst[:-1]:
+        l=field.split("=")
+        section, info = l[0], l[1]
+        d[section]=info
+    return d

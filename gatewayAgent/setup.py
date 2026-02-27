@@ -1,6 +1,7 @@
 import random, string
 from dataclasses import dataclass
-# from queue import Queue
+from queue import Queue
+import os
 
 # notify_q=Queue()
 
@@ -11,6 +12,11 @@ application_name = 'gatewayAgent'                         # The name of the appl
 application_path = cse_url + '/' + application_name         # The path of the application entity
 subscription_name = 'gatewaySubscription'                        # The name of the subscription
 originator = 'CgatewayAgent'
+image='ankraft/acme-onem2m-cse:latest'
+parent=os.path.dirname(__file__)
+grandparent=os.path.dirname(parent)
+notify_q=Queue()
+
 
 # container_name='cmd'
 # container_path=application_path+'/'+container_name
