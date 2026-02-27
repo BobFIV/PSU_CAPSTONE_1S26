@@ -150,7 +150,7 @@
           if (btn.dataset.action === "deploy_cse_acme") {
             const payload = { 
               cseName: (state.cse.name || "").trim(),
-              httpPort: (state.cse.port || "").trim(),
+              localPort: (state.cse.port || "").trim(),
               cseID: (state.cse.cseID || "").trim()
             }; 
             setStatus("Sending MN-CSE updates to Gateway data…");
