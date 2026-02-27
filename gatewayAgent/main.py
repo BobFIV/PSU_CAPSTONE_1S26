@@ -18,7 +18,7 @@ import atexit
 
 from start import start_CSE, update_config, read_config, stop_CSE
 
-from processData import process, parse_cin
+from processData import process_cin, parse_cin
 
 # import sys
 
@@ -87,42 +87,69 @@ if create_subscription(originator, application_path+'/cmd', subscription_name, n
 
 # while not notify_q:
 #     data=notify_q.get()
+if create_subscription(originator, application_path+'/data', subscription_name, notificationURIs) == False:
+    unregister_AE(originator, application_name)
+    stop_notification_receiver()
+    exit()
 
+print("Waiting for orchestrator to create CIN")
+while True:
+    data=notify_q.get() #block when q is empty
+    # print(94,data)
+
+    try:
+        cin_cmd= process_cin(data)
+        # cin_cmd=retrieve_contentinstance(originator, application_path+'/data/la')
+        if cin_cmd['con']=='execute': #cmd
+            if delete_contentinstance(application_path+'/cmd/'+cin_cmd['rn'])==False:
+                pass
+        else:
+            print("Not execute command")
+        
+
+            # unregister_AE(originator, application_name)
+            # stop_notification_receiver()
+            # exit()
+        # cin=retrieve_contentinstance(originator, application_path+'/data/la')
+        # data=cin['con']
+
+    except KeyError:
+        print("CIN does not exist in cmd")
+    
+    try:
+        cin_data=retrieve_contentinstance(originator, application_path+'/data/la')
+        print(cin_data)
+        if 'cseName' in cin_data['con']: #condition
+            mn_id, mn_name, mn_loport=update_config('acme_mn1/acme.ini', cin_data['con'])
+            mn_port=read_config('acme_mn1/acme.ini', 'httpPort')
+            mn_url=f'http://localhost:{mn_loport}/~/{mn_id}/{mn_name}'
+
+            if start_CSE(mn_id, mn_name, mn_loport, mn_port)==False: #container name==cse name
+                pass
+
+            register_AE('CgatewayAgentMN', 'gatewayAgentMN', mn_url)
+    except KeyError:
+        print("CIN does not exist in data")
 
 
 # Content in gatewayAgent/cmd and gatewayAgent/data (orchestrator pushes via API; optional initial values here)
-register_AE('Corchestrator', 'orchestrator', cse_url)
-create_contentInstance(originator, application_path+'/cmd', 'execute')
-create_contentInstance(originator, application_path+'/data', 'cseName=cse-mn1\ncseID=id-mn1\nlocalPort=8081\n')
+# register_AE('Corchestrator', 'orchestrator', cse_url)
+# create_contentInstance(originator, application_path+'/cmd', 'execute')
+# create_contentInstance(originator, application_path+'/data', 'cseName=cse-mn1\ncseID=id-mn1\nlocalPort=8081\n')
 
 
 
 # Retrieve the <container> resource
-cin=retrieve_contentinstance(originator, application_path+'/cmd/la')
-if cin['con']=='execute': #cmd
-    if delete_contentinstance(application_path+'/cmd/'+cin['rn'])==False:
-        pass
-
-    # unregister_AE(originator, application_name)
-    # stop_notification_receiver()
-    # exit()
-cin=retrieve_contentinstance(originator, application_path+'/data/la')
-data=cin['con']
-mn_id, mn_name, mn_loport=update_config('acme_mn1/acme.ini', data)
-mn_port=read_config('acme_mn1/acme.ini', 'httpPort')
-mn_url=f'http://localhost:{mn_loport}/~/{mn_id}/{mn_name}'
-
-if start_CSE(mn_id, mn_name, mn_loport, mn_port)==False: #container name==cse name
-    pass
-
-register_AE('CgatewayAgentMN', 'gatewayAgentMN', mn_url)
+        # cin=retrieve_contentinstance(originator, application_path+'/cmd/la')
+        
+        
 # register_AE('CgatewayAgentMN', 'gatewayAgentMN', f'http://localhost:8081/~/id-mn1/cse-mn1')
 
 # Unregister the AE and stop the notification server
 # unregister_AE(originator, application_name)
 # stop_notification_receiver()
 
-atexit.register(lambda:unregister_AE(originator, application_name))
-atexit.register(lambda:stop_notification_receiver())
+    atexit.register(lambda:unregister_AE(originator, application_name))
+    atexit.register(lambda:stop_notification_receiver())
 # atexit.register(lambda:stop_CSE())
 

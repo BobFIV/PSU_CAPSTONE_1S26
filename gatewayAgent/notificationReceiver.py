@@ -22,7 +22,7 @@ class NotificationReceiver(BaseHTTPRequestHandler):
         else:
             notify_q.put(data)
             print('<= Subscription notification request received')
-            # notify_q.put(data) #this is real
+            notify_q.put(data) #this is real
         print(f'<= {data}')
 
         # cin=process(data)
