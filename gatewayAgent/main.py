@@ -144,6 +144,7 @@ while True: #stop when no notification, don't keep retrieving
 
 
 
+
 # Retrieve the <container> resource
         # cin=retrieve_contentinstance(originator, application_path+'/cmd/la')
         
