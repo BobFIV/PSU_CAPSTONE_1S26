@@ -6,9 +6,9 @@ def process_cin(data:str):
 
 def parse_cin(data):
     #"csename=df"
-    lst=data.split('\n')
+    lst=data.strip().split('\n')
     d={}
-    for field in lst[:-1]:
+    for field in lst:
         l=field.split("=")
         section, info = l[0], l[1]
         d[section]=info

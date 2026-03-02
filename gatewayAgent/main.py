@@ -87,13 +87,14 @@ if create_subscription(originator, application_path+'/cmd', subscription_name, n
 
 # while not notify_q:
 #     data=notify_q.get()
-if create_subscription(originator, application_path+'/data', subscription_name, notificationURIs) == False:
-    unregister_AE(originator, application_name)
-    stop_notification_receiver()
-    exit()
+# if create_subscription(originator, application_path+'/data', subscription_name, notificationURIs) == False:
+#     unregister_AE(originator, application_name)
+#     stop_notification_receiver()
+#     exit()
 
 print("Waiting for orchestrator to create CIN")
-while True:
+while True: #stop when no notification, don't keep retrieving
+    #another sub on data for gateway with field data| or cmd| OR only proceed when notification, add delete notification (current net=[3])
     data=notify_q.get() #block when q is empty
     # print(94,data)
 
@@ -103,6 +104,23 @@ while True:
         if cin_cmd['con']=='execute': #cmd
             if delete_contentinstance(application_path+'/cmd/'+cin_cmd['rn'])==False:
                 pass
+            try:
+                #orchestrator create data first so this way will retrieve both
+                #gateway is late so this cin can be already old=>concern
+                cin_data=retrieve_contentinstance(originator, application_path+'/data/la') #only la needed for data
+                # print(cin_data)
+                if 'cseName' in cin_data['con']: #condition
+                    mn_id, mn_name, mn_loport=update_config('acme_mn1/acme.ini', cin_data['con'])
+                    mn_port=read_config('acme_mn1/acme.ini', 'httpPort')
+                    mn_url=f'http://localhost:{mn_loport}/~/{mn_id}/{mn_name}'
+
+                    if start_CSE(mn_id, 'acme-mn1', mn_loport, mn_port)==False: #container name==cse name-> don't give name
+                        pass
+
+                    register_AE('CgatewayAgentMN', 'gatewayAgentMN', mn_url)
+            except KeyError:
+                print("CIN does not exist in data")
+
         else:
             print("Not execute command")
         
@@ -116,20 +134,7 @@ while True:
     except KeyError:
         print("CIN does not exist in cmd")
     
-    try:
-        cin_data=retrieve_contentinstance(originator, application_path+'/data/la')
-        print(cin_data)
-        if 'cseName' in cin_data['con']: #condition
-            mn_id, mn_name, mn_loport=update_config('acme_mn1/acme.ini', cin_data['con'])
-            mn_port=read_config('acme_mn1/acme.ini', 'httpPort')
-            mn_url=f'http://localhost:{mn_loport}/~/{mn_id}/{mn_name}'
-
-            if start_CSE(mn_id, mn_name, mn_loport, mn_port)==False: #container name==cse name
-                pass
-
-            register_AE('CgatewayAgentMN', 'gatewayAgentMN', mn_url)
-    except KeyError:
-        print("CIN does not exist in data")
+    
 
 
 # Content in gatewayAgent/cmd and gatewayAgent/data (orchestrator pushes via API; optional initial values here)

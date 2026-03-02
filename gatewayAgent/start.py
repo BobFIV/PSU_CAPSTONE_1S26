@@ -60,7 +60,7 @@ def update_config(dirfilename, data):
     cfg.optionxform=str
     cfg.read(p)
     for section,name in d.items():
-        if cfg.has_section(section):
+        if cfg.has_option('basic.config', section):
             cfg['basic.config'][section]=name
         else:
             port= name

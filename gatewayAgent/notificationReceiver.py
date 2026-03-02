@@ -20,7 +20,6 @@ class NotificationReceiver(BaseHTTPRequestHandler):
         if data['m2m:sgn'].get('vrq'):
             print('<= Verification notification request received')
         else:
-            notify_q.put(data)
             print('<= Subscription notification request received')
             notify_q.put(data) #this is real
         print(f'<= {data}')
