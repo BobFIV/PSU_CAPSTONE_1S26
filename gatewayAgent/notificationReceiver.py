@@ -4,6 +4,7 @@ import json
 from setup import *
 
 
+
 notification_receiver = None
 
 class NotificationReceiver(BaseHTTPRequestHandler):
@@ -15,11 +16,12 @@ class NotificationReceiver(BaseHTTPRequestHandler):
         request_id = self.headers['X-M2M-RI']
         post_data = self.rfile.read(content_length)
         data = json.loads(post_data)
+        
         if data['m2m:sgn'].get('vrq'):
             print('<= Verification notification request received')
         else:
             print('<= Subscription notification request received')
-            # notify_q.put(data) #this is real
+            notify_q.put(data) #this is real
         print(f'<= {data}')
 
         # cin=process(data)

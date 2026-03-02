@@ -1,7 +1,7 @@
 from setup import cse_url, randomID
 import requests
 
-def register_AE(originator:str, application_name: str) -> bool:
+def register_AE(originator:str, application_name: str, url:str) -> bool:
     """ Register an Application Entity
 
         Args:
@@ -10,7 +10,6 @@ def register_AE(originator:str, application_name: str) -> bool:
         Returns:
             bool: True if the AE was registered successfully, False otherwise
     """
-
     # Set the oneM2M headers for creating the <AE> resource
     headers = {
         'Content-Type': 'application/json;ty=2',    # Type of the resource to be created
@@ -29,9 +28,8 @@ def register_AE(originator:str, application_name: str) -> bool:
         }
     }
 
-
     # Perform the http request to create the <AE> resource
-    response = requests.post(cse_url, headers=headers, json=body)
+    response = requests.post(url, headers=headers, json=body)
 
 
     # Check the response
