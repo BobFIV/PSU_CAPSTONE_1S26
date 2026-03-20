@@ -27,7 +27,12 @@ def create_subscription(originator:str, path:str, rn:str, notificationURIs:list[
             'enc': {
                 'net': [3]                          # Event Type: Create Direct Child
             },
-            'nu': notificationURIs
+            'nct': 1,                               #get full Resource
+            'nu': notificationURIs,
+            #'fc': {                                 #filter for AE's
+            #    'ty': [2]
+            #    'rn': ["gatewayAgent"]              #filter for name
+            #}
         }
     }
 
