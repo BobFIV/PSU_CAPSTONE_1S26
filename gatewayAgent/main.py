@@ -16,53 +16,18 @@ from notificationReceiver import run_notification_receiver, stop_notification_re
 
 import atexit
 
-from start import start_CSE, update_config, read_config, stop_CSE
+from start import start_CSE, update_config, read_config, stop_CSE, set_maxmn, set_localports
 
 from processData import process_cin, parse_cin
 
 # import sys
 
-
-
-# if len(sys.argv)!=3:
-#     print("Format Error: python3 main.py IN/MN1/MN2 CONTAINER")
-#     sys.exit(1)
-
-# if sys.argv[1]=='IN':
-#     cse_url = 'http://localhost:8080/~/id-in/cse-in'            # The url of the CSE - use host port of 8081 for mn1, 8080 for in
-#     notificationURIs = ['http://host.docker.internal:9000']                # The notification target
-#     application_name = 'gatewayAgent'                         # The name of the application entity
-#     application_path = cse_url + '/' + application_name         # The path of the application entity
-#     subscription_name = 'gatewaySubscription'                        # The name of the subscription
-#     originator = 'CgatewayAgent'
-#     container_name=sys.argv[2]
-#     container_path=application_path+'/'+container_name
-
-# # Setup variables
-# elif sys.argv[1]=='MN1':
-#     cse_url = 'http://localhost:8081/~/id-mn1/cse-mn1'            # The url of the CSE - use host port of 8081 for mn1, 8080 for in
-#     notificationURIs = ['http://host.docker.internal:9000']                # The notification target
-#     application_name = 'gatewayAgentMN1'                         # The name of the application entity
-#     application_path = cse_url + '/' + application_name         # The path of the application entity
-#     subscription_name = 'gatewaySubscription'                        # The name of the subscription
-#     originator = 'CgatewayAgentMN1'
-#     container_name=sys.argv[2]
-#     container_path=application_path+'/'+container_name
-
-# elif sys.argv[1]=='MN2':
-#     cse_url = 'http://localhost:8082/~/id-mn2/cse-mn2'            # The url of the CSE - use host port of 8081 for mn1, 8080 for in
-#     notificationURIs = ['http://host.docker.internal:9000']                # The notification target
-#     application_name = 'gatewayAgentMN2'                          # The name of the application entity
-#     application_path = cse_url + '/' + application_name         # The path of the application entity
-#     subscription_name = 'gatewaySubscription'                        # The name of the subscription
-#     originator = 'CgatewayAgentMN2'
-#     container_name=sys.argv[2]
-#     container_path=application_path+'/'+container_name
-
-# cfg=Cfg(cse_url, notificationURIs, application_name, application_path, subscription_name, originator, container_name, container_path)
-
 # Start the notification server first
 run_notification_receiver()
+set_maxmn()
+set_localports()
+# print(localports)
+
 
 # Register gatewayAgent AE and create cmd/data only under gatewayAgent (orchestrator does not create these)
 # Register an AE
@@ -102,24 +67,21 @@ while True: #stop when no notification, don't keep retrieving
         cin_cmd= process_cin(data)
         # cin_cmd=retrieve_contentinstance(originator, application_path+'/data/la')
         if cin_cmd['con']=='execute': #cmd
-            if delete_contentinstance(application_path+'/cmd/'+cin_cmd['rn'])==False:
-                pass
-            try:
-                #orchestrator create data first so this way will retrieve both
-                #gateway is late so this cin can be already old=>concern
-                cin_data=retrieve_contentinstance(originator, application_path+'/data/la') #only la needed for data
-                # print(cin_data)
-                if 'cseName' in cin_data['con']: #condition
-                    mn_id, mn_name, mn_loport=update_config('acme_mn1/acme.ini', cin_data['con'])
-                    mn_port=read_config('acme_mn1/acme.ini', 'httpPort')
-                    mn_url=f'http://localhost:{mn_loport}/~/{mn_id}/{mn_name}'
-
-                    if start_CSE(mn_id, 'acme-mn1', mn_loport, mn_port)==False: #container name==cse name-> don't give name
-                        pass
-
-                    register_AE('CgatewayAgentMN', 'gatewayAgentMN', mn_url)
-            except KeyError:
-                print("CIN does not exist in data")
+            if delete_contentinstance(application_path+'/cmd/'+cin_cmd['rn']):
+                try:
+                    #orchestrator create data first so this way will retrieve both
+                    #gateway is late so this cin can be already old=>concern
+                    cin_data=retrieve_contentinstance(originator, application_path+'/data/la') #only la needed for data
+                    # print(cin_data)
+                    if 'cseName' in cin_data['con']: #condition
+                        mn_id, mn_name, mn_loport, docker_name=update_config(cin_data['con'])
+                        mn_port=read_config(f'{docker_name}/acme.ini', 'httpPort')
+                        mn_url=f'http://localhost:{mn_loport}/~/{mn_id}/{mn_name}'
+                        
+                        if start_CSE(mn_id, docker_name, mn_loport, mn_port): #container name==cse name-> don't give name
+                            register_AE('CgatewayAgentMN', 'gatewayAgentMN', mn_url)
+                except KeyError:
+                    print("CIN does not exist in data")
 
         else:
             print("Not execute command")

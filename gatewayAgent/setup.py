@@ -16,6 +16,8 @@ image='ankraft/acme-onem2m-cse:latest'
 parent=os.path.dirname(__file__)
 grandparent=os.path.dirname(parent)
 notify_q=Queue()
+MAX_MN=5
+localports=[]
 
 
 # container_name='cmd'

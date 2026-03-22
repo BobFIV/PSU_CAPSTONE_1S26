@@ -85,6 +85,7 @@ def delete_contentinstance(url:str)->bool:
     
     if r.status_code == 200:
         print('Contentinstance deleted successfully')
+        return True
     else:
         print('Error deleting contentinstance: ' + str(r.status_code))
         return False
