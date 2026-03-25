@@ -25,9 +25,11 @@ def create_subscription(originator:str, path:str, rn:str, notificationURIs:list[
         'm2m:sub': {
             'rn': rn,
             'enc': {
-                'net': [3]                          # Event Type: Create Direct Child
+                'net': [3],                          # Event Type: Create Direct Child
+                'chty': [2]
             },
-            'nu': notificationURIs
+            'nct': 1,                               #get full Resource
+            'nu': notificationURIs,
         }
     }
 

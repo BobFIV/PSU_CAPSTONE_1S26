@@ -3,6 +3,7 @@ from threading import Thread
 import json
 
 notification_receiver = None
+TARGET_AE_NAME = "gatewayAgent"
 
 class NotificationReceiver(BaseHTTPRequestHandler):
     """ The notification handler class. 
@@ -13,11 +14,32 @@ class NotificationReceiver(BaseHTTPRequestHandler):
         request_id = self.headers['X-M2M-RI']
         post_data = self.rfile.read(content_length)
         data = json.loads(post_data)
+
         if data['m2m:sgn'].get('vrq'):
             print('<= Verification notification request received')
         else:
             print('<= Subscription notification request received')
-        print(f'<= {data}')
+            print(f'<= {data}')
+
+            try:
+                rep = data['m2m:sgn']['nev']['rep']
+
+                if 'm2m:ae' not in rep:
+                    print("Ignoring: NOT AE creation")
+                else:
+                    ae = rep['m2m:ae']
+
+                    ae_name = ae.get('rn')
+
+                    print(f"AE detected: {ae_name}")
+
+                    if ae_name != TARGET_AE_NAME:
+                        print(f"Ignored AE: {ae_name}")
+                    else:
+                        print("gatewayAgent AE detected")
+                        #add some hadler function for later
+            except Exception as e:
+                print(f"Error processing notification: {e}")
 
         self.send_response(200)
         self.send_header('X-M2M-RSC', '2000')

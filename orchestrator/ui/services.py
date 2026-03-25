@@ -61,14 +61,14 @@ def initalize_Full_startup(application_name, application_path, container_name, c
         stop_notification_receiver()
         return False
     
-def subscribe_to_gateway_data():
+def subscribe_to_cse_base():
     """Start notification receiver and subscribe to gatewayAgent/data so Orchestrator gets NOTIFY when data changes."""
     try:
         run_notification_receiver()
         atexit.register(stop_notification_receiver)
         ok = create_subscription(
             originator_gateway_control,
-            gateway_data_path,
+            cse_url,
             "orchestratorSubToGatewayData",
             notificationURIs,
         )
@@ -98,7 +98,7 @@ def initialize_AE_only(application_name):
         final_registration_status = "Orchestrator AE successfully created"
 
         # Subscribe to gatewayAgent/data (no own containers; observe Gateway's data via oneM2M)
-        subscribe_to_gateway_data()
+        subscribe_to_cse_base()
 
         return True
 
