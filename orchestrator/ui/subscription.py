@@ -25,14 +25,11 @@ def create_subscription(originator:str, path:str, rn:str, notificationURIs:list[
         'm2m:sub': {
             'rn': rn,
             'enc': {
-                'net': [3]                          # Event Type: Create Direct Child
+                'net': [3],                          # Event Type: Create Direct Child
+                'chty': [2]
             },
             'nct': 1,                               #get full Resource
             'nu': notificationURIs,
-            #'fc': {                                 #filter for AE's
-            #    'ty': [2]
-            #    'rn': ["gatewayAgent"]              #filter for name
-            #}
         }
     }
 
