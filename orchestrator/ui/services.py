@@ -273,3 +273,100 @@ def send_command_to_gateway(content: str) -> tuple:
 def send_data_to_gateway(content: str) -> tuple:
     """Create contentInstance in gatewayAgent/data."""
     return create_contentInstance_with_response(originator_gateway_control, gateway_data_path, content)
+
+def discover_resources_from_cse() -> dict:
+    """
+    Query the IN-CSE for registered remoteCSEs and AEs.
+    Returns a dict with keys 'cses' and 'aes'.
+    """
+    import requests as _requests
+
+    headers_base = {
+        'X-M2M-Origin': originator_gateway_control,
+        'X-M2M-RVI': '4',
+        'Accept': 'application/json',
+    }
+
+    discovered_cses = []
+    discovered_aes = []
+
+    # --- Discover MN-CSEs (remoteCSE, ty=16) ---
+    try:
+        h = {**headers_base, 'X-M2M-RI': randomID()}
+        r = _requests.get(cse_url, params={'fu': 1, 'ty': 16}, headers=h, timeout=5)
+        if r.status_code == 200:
+            data = r.json()
+            # Response is a list of resource URIs under 'm2m:uril'
+            uris = data.get('m2m:uril', [])
+            for uri in uris:
+                # Fetch each remoteCSE resource for its details
+                h2 = {**headers_base, 'X-M2M-RI': randomID()}
+                r2 = _requests.get(f'http://localhost:8080/{uri}', headers=h2, timeout=5)
+                if r2.status_code == 200:
+                    csr = r2.json().get('m2m:csr', {})
+                    cse_name = csr.get('csn', csr.get('rn', ''))
+                    cse_id   = csr.get('csi', '')
+                    # Try to extract port from pointOfAccess (poa)
+                    poa_list = csr.get('poa', [])
+                    port = ''
+                    if poa_list:
+                        # e.g. "http://localhost:8081"
+                        try:
+                            port = poa_list[0].split(':')[-1]
+                        except Exception:
+                            pass
+                    discovered_cses.append({
+                        'name': cse_name,
+                        'cseID': cse_id,
+                        'port': port,
+                    })
+    except Exception as e:
+        print(f'discover_resources_from_cse (CSE): {e}')
+
+    # --- Discover AEs (ty=2) ---
+    try:
+        h = {**headers_base, 'X-M2M-RI': randomID()}
+        r = _requests.get(cse_url, params={'fu': 1, 'ty': 2}, headers=h, timeout=5)
+        if r.status_code == 200:
+            data = r.json()
+            uris = data.get('m2m:uril', [])
+            for uri in uris:
+                h2 = {**headers_base, 'X-M2M-RI': randomID()}
+                r2 = _requests.get(f'http://localhost:8080/{uri}', headers=h2, timeout=5)
+                if r2.status_code == 200:
+                    ae = r2.json().get('m2m:ae', {})
+                    ae_name = ae.get('rn', '')
+                    ae_api  = ae.get('api', '')
+                    discovered_aes.append({
+                        'name': ae_name,
+                        'api': ae_api,
+                    })
+    except Exception as e:
+        print(f'discover_resources_from_cse (AE): {e}')
+
+    return {'cses': discovered_cses, 'aes': discovered_aes}
+
+
+def sync_topology_from_cse():
+    """
+    Pull live resource data from IN-CSE and upsert into topology state.
+    Called by the topology API endpoint so the frontend always gets fresh data.
+    """
+    discovered = discover_resources_from_cse()
+
+    for cse in discovered['cses']:
+        upsert_cse_topology(
+            name=cse['name'],
+            cse_id=cse['cseID'],
+            port=cse['port'],
+            deploy_type='Discovered from IN-CSE',
+            source='cse-discovery',
+        )
+
+    # For AEs, attach to matching CSE by cseID or fall back to latest
+    for ae in discovered['aes']:
+        add_ae_to_topology(
+            name=ae['name'],
+            deploy_type='Discovered from IN-CSE',
+            source='cse-discovery',
+        )

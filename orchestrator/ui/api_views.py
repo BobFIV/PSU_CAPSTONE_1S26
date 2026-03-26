@@ -17,6 +17,7 @@ def api_status(request):
 
 @require_http_methods(["GET"])
 def api_topology(request):
+    services.sync_topology_from_cse()   # <-- pull live data first
     return JsonResponse({
         "success": True,
         "topology": services.get_topology_snapshot(),
