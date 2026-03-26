@@ -191,6 +191,10 @@ def set_localports():
     out=r.stdout
     # print(out)
     for line in out.strip().split('\n'):
-        # print(out)
-        localports.append(parse_port(line))
+        if '\t' not in line:
+            continue
+        ports_col = line.split('\t')[1]
+        for port_entry in ports_col.split(', '):
+            if '->' in port_entry:
+                localports.append(parse_port(port_entry))
     # print(localports)
