@@ -16,9 +16,10 @@ image='ankraft/acme-onem2m-cse:latest'
 parent=os.path.dirname(__file__)
 grandparent=os.path.dirname(parent)
 notify_q=Queue()
-MAX_MN=5
+MAX_MN=2
 localports=[]
-
+num_mn=0
+# not create ini folder if reached maximum (or cse not started)
 
 # container_name='cmd'
 # container_path=application_path+'/'+container_name

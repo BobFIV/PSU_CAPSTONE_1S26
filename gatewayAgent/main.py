@@ -16,7 +16,7 @@ from notificationReceiver import run_notification_receiver, stop_notification_re
 
 import atexit
 
-from start import start_CSE, update_config, read_config, stop_CSE, set_maxmn, set_localports
+from start import start_CSE, update_config, read_config, stop_CSE, set_nummn, set_localports
 
 from processData import process_cin, parse_cin
 
@@ -24,7 +24,7 @@ from processData import process_cin, parse_cin
 
 # Start the notification server first
 run_notification_receiver()
-set_maxmn()
+set_nummn()
 set_localports()
 # print(localports)
 

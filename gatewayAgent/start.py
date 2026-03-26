@@ -10,7 +10,7 @@ import time, requests
 def start_CSE(id:str, name:str, loport:str, port:str, timeout:float=12)->bool:
     #docker run -it -p 8081:8080 -e hostIPAddress=localhost -v ./acme_in:/data --name acme-in ankraft/acme-onem2m-cse:latest
     # subprocess.run(["docker", "rm", "-f", name], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    global MAX_MN
+    global num_mn
     global localports
 
     
@@ -34,14 +34,14 @@ def start_CSE(id:str, name:str, loport:str, port:str, timeout:float=12)->bool:
             return True
             
     else:
-        if MAX_MN==0:
+        if num_mn==MAX_MN:
             print("Reached maximum number of MN-CSE")
             return False
         if loport in localports:
             print("Want to create? Port is already allocated")
             return False
         localports.append(loport)
-        MAX_MN-=1
+        num_mn+=1
         cmd=["docker", "run", "--name", name] #create
         cmd+=["-d"]
         cmd+=["-p", f"{loport}:{port}", "-e", "hostIPAddress=localhost", "-v", f"./{name}:/data", image]
@@ -179,10 +179,10 @@ def update_config(data):
     print(f"Configuration updated successfully")
     return d['cseID'],d['cseName'], d['localPort'], d['dockerName']
 
-def set_maxmn():
-    global MAX_MN
+def set_nummn():
+    global num_mn
     r = subprocess.run(["docker", "ps", "-aq"], capture_output=True, text=True)
-    MAX_MN-=len([x for x in r.stdout.split('\n') if x.strip()])+1
+    num_mn+=len([x for x in r.stdout.split('\n') if x.strip()])-1
 
 
 def set_localports():

@@ -1,0 +1,37 @@
+version: "3.9"
+
+services:
+  gateway-agent:
+    container_name: gatewayAgent
+    build:
+      context: ./gatewayAgent
+      dockerfile: Dockerfile
+    ports:
+      - "9000:9000"   # callback listener
+    environment:
+      MN_CSE_BASE_URL: ${MN_CSE_BASE_URL}
+      ORIGINATOR_ID: ${ORIGINATOR_ID}
+      CALLBACK_URL: ${CALLBACK_URL}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+
+      TLS_ENABLED: ${TLS_ENABLED:-false}
+      TLS_VERIFY: ${TLS_VERIFY:-true}
+      TLS_CA_CERT: ${TLS_CA_CERT:-/run/certs/ca.pem}
+      TLS_CLIENT_CERT: ${TLS_CLIENT_CERT:-/run/certs/client.crt}
+      TLS_CLIENT_KEY: ${TLS_CLIENT_KEY:-/run/certs/client.key}
+    volumes:
+      - ./certs:/run/certs:ro
+    restart: unless-stopped
+    networks:
+      - onem2m-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+networks:
+  onem2m-net:
+    driver: bridge
+
+  
