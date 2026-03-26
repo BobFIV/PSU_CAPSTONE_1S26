@@ -134,14 +134,14 @@ def read_config(dirfilename, section): #not using yet
 def update_config(data):
     #update and return new configs
     d=parse_cin(data)
-    dirfilename=f"{d["dockerName"]}/acme.ini"
+    dirfilename = f'{d["dockerName"]}/acme.ini'
     ini_path=os.path.join(grandparent, dirfilename)
     p=Path(ini_path)
 
     if not p.exists():
         os.makedirs(os.path.dirname(ini_path), exist_ok=True)
         with p.open("x") as f:
-            f.write(f"[basic.config]\ncseType = MN\ncseID = {d["cseID"]}\ncseName = {d["cseName"]}\n"+
+            f.write(f'[basic.config]\ncseType = MN\ncseID = {d["cseID"]}\ncseName = {d["cseName"]}\n'+
                     "serviceProviderID = //acme.example.com\n"+
                     "adminID = CAdmin\n"+
                     "networkInterface = 0.0.0.0\n"+
