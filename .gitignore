@@ -7,3 +7,6 @@ venv
 /acme_mn1/data/
 /acme_mn2/data/
 __pycache__/
+.vscode
+**/acme_in/
+**/acme-mn*/

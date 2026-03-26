@@ -10,7 +10,7 @@ import time, requests
 def start_CSE(id:str, name:str, loport:str, port:str, timeout:float=12)->bool:
     #docker run -it -p 8081:8080 -e hostIPAddress=localhost -v ./acme_in:/data --name acme-in ankraft/acme-onem2m-cse:latest
     # subprocess.run(["docker", "rm", "-f", name], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    global MAX_MN
+    global num_mn
     global localports
 
     
@@ -34,14 +34,14 @@ def start_CSE(id:str, name:str, loport:str, port:str, timeout:float=12)->bool:
             return True
             
     else:
-        if MAX_MN==0:
+        if num_mn==MAX_MN:
             print("Reached maximum number of MN-CSE")
             return False
         if loport in localports:
             print("Want to create? Port is already allocated")
             return False
         localports.append(loport)
-        MAX_MN-=1
+        num_mn+=1
         cmd=["docker", "run", "--name", name] #create
         cmd+=["-d"]
         cmd+=["-p", f"{loport}:{port}", "-e", "hostIPAddress=localhost", "-v", f"./{name}:/data", image]
@@ -134,14 +134,14 @@ def read_config(dirfilename, section): #not using yet
 def update_config(data):
     #update and return new configs
     d=parse_cin(data)
-    dirfilename=f"{d["dockerName"]}/acme.ini"
+    dirfilename = f'{d["dockerName"]}/acme.ini'
     ini_path=os.path.join(grandparent, dirfilename)
     p=Path(ini_path)
 
     if not p.exists():
         os.makedirs(os.path.dirname(ini_path), exist_ok=True)
         with p.open("x") as f:
-            f.write(f"[basic.config]\ncseType = MN\ncseID = {d["cseID"]}\ncseName = {d["cseName"]}\n"+
+            f.write(f'[basic.config]\ncseType = MN\ncseID = {d["cseID"]}\ncseName = {d["cseName"]}\n'+
                     "serviceProviderID = //acme.example.com\n"+
                     "adminID = CAdmin\n"+
                     "networkInterface = 0.0.0.0\n"+
@@ -179,10 +179,10 @@ def update_config(data):
     print(f"Configuration updated successfully")
     return d['cseID'],d['cseName'], d['localPort'], d['dockerName']
 
-def set_maxmn():
-    global MAX_MN
+def set_nummn():
+    global num_mn
     r = subprocess.run(["docker", "ps", "-aq"], capture_output=True, text=True)
-    MAX_MN-=len([x for x in r.stdout.split('\n') if x.strip()])+1
+    num_mn+=len([x for x in r.stdout.split('\n') if x.strip()])-1
 
 
 def set_localports():

@@ -3,12 +3,11 @@
 
 {% block content %}
 <div class="wf">
-
-  <!-- looks like the blank top bar in the slides -->
-  <div class="wfTopBar" aria-hidden="true"></div>
+  <div class="wfTopBar">
+    <div class="wfTopBarTitle">Orchestrator Topology</div>
+  </div>
 
   <div class="wfShell">
-    <!-- left nav (always visible like the slides) -->
     <nav class="wfNav" aria-label="Steps">
       <button class="wfNavItem" data-open="host" type="button">
         <span class="wfDiamond"></span>
@@ -26,50 +25,39 @@
       </button>
     </nav>
 
-    <!-- main area defaults to Topology (like slide 17) -->
     <main class="wfMain">
       <div class="wfMainInner">
-        <div class="wfStatus" id="wfStatus">Topology view</div>
-
-        <div class="wfTopoCanvas">
-          <!-- SVG lines to look like the drawn tree -->
-          <svg class="wfTopoSvg" viewBox="0 0 1000 520" preserveAspectRatio="none" aria-hidden="true">
-            <path d="M500 170 C500 260 500 260 500 300" />
-            <path d="M500 300 C380 300 380 300 320 360" />
-            <path d="M500 300 C620 300 620 300 680 360" />
-          </svg>
-
-          <div class="wfNode wfNodeRoot" id="nodeRoot">
-            <div class="wfNodeText" id="nodeRootText">
-              <div>Local Host</div>
-              <div>IN-CSE</div>
-              <div>orchestration AE</div>
-            </div>
-          </div>
-
-          <div class="wfNode wfNodeLeaf" id="nodeLeft">
-            <div class="wfNodeText" id="nodeLeftText">
-              <div>rPI</div>
-              <div>MN-CSE</div>
-              <div>sample AE</div>
-            </div>
-          </div>
-
-          <div class="wfNode wfNodeLeaf" id="nodeRight">
-            <div class="wfNodeText" id="nodeRightText">
-              <div>rPI</div>
-              <div>MN-CSE</div>
-              <div>sample AE</div>
-            </div>
-          </div>
+        <div class="wfTopoHeader">
+          <div class="wfStatus" id="wfStatus">Topology ready</div>
+          <div class="wfTopoMeta" id="wfTopoMeta">0 MN-CSEs • 0 AEs</div>
         </div>
 
+        <div id="cyTopology" class="wfCy" aria-label="Dynamic network diagram"></div>
+
+        <div class="wfLegend">
+          <div class="wfLegendItem">
+            <span class="wfLegendSwatch wfLegendHost"></span>
+            <span>Local Host</span>
+          </div>
+          <div class="wfLegendItem">
+            <span class="wfLegendSwatch wfLegendIn"></span>
+            <span>IN-CSE / Orchestrator</span>
+          </div>
+          <div class="wfLegendItem">
+            <span class="wfLegendSwatch wfLegendMn"></span>
+            <span>MN-CSE</span>
+          </div>
+          <div class="wfLegendItem">
+            <span class="wfLegendSwatch wfLegendAe"></span>
+            <span>AE</span>
+          </div>
+        </div>
       </div>
     </main>
   </div>
 </div>
 
-<!-- Modal (popup) -->
+<!-- Modal -->
 <div class="wfModal" id="wfModal" aria-hidden="true">
   <div class="wfModalPanel" role="dialog" aria-modal="true" aria-label="Orchestration step">
     <div class="wfModalHeader">
@@ -145,12 +133,12 @@
           <span class="wfLineLabel">CSE-ID :</span>
           <input class="wfLineInput" name="cse_id" type="text" placeholder="" />
         </div>
-        
+
         <div class="wfLine">
           <span class="wfLineLabel">Port :</span>
           <input class="wfLineInput" name="cse_port" type="text" placeholder="" />
         </div>
-      
+
         <div class="wfLine">
           <span class="wfLineLabel">... </span>
           <input class="wfLineInput" name="cse_extra" type="text" placeholder="" />
@@ -169,11 +157,13 @@
   </div>
 </template>
 
-<!-- AE screen (kept same “wireframe style”; deploy list can be edited later) -->
+<!-- AE screen -->
 <template id="tplAE">
   <div class="wfScreen">
     <div class="wfParam wfParamRed">
       <div class="wfParamTitle">parameter of the AE</div>
+
+      <div class="wfMiniNote" id="aeTargetHint">Deploy a CSE first to attach an AE.</div>
 
       <div class="wfLines">
         <div class="wfLine">

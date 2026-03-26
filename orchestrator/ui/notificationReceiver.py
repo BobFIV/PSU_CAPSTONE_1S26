@@ -38,6 +38,12 @@ class NotificationReceiver(BaseHTTPRequestHandler):
                     else:
                         print("gatewayAgent AE detected")
                         #add some hadler function for later
+                        try:
+                            from . import services
+                            record = services.handle_gateway_agent_notification(ae)
+                            print(f"Topology updated from notification: {record}")
+                        except Exception as e:
+                            print(f"Error updating topology from notification: {e}")
             except Exception as e:
                 print(f"Error processing notification: {e}")
 
