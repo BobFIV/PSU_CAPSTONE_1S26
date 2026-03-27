@@ -11,13 +11,21 @@ class UiConfig(AppConfig):
             return
         
         from . import services
+        from . import find_gatewayAE
         from .setup import application_name
+        from .setup import originator
+        from .setup import cse_url
 
         try:
             services.initialize_AE_only(application_name)
             status = services.final_registration_status  # read after call so updated value is used
             print("IN-CSE response:", status)
+            if find_gatewayAE.retrieve_gatewayAE(originator,cse_url):
+                print("found gateway AEs")
+            else:
+                print("no gatewayAgent AEs found")
+
         except Exception as e:
-            print("Error registering container:", e)
+            print("Error registering:", e)
 
 
