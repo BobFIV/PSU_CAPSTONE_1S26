@@ -134,7 +134,7 @@ def read_config(dirfilename, section): #not using yet
 def update_config(data):
     #update and return new configs
     d=parse_cin(data)
-    dirfilename = f'{d["dockerName"]}/acme.ini'
+    dirfilename=f"{d['dockerName']}/acme.ini"
     ini_path=os.path.join(grandparent, dirfilename)
     p=Path(ini_path)
 
@@ -178,6 +178,7 @@ def update_config(data):
     
     print(f"Configuration updated successfully")
     return d['cseID'],d['cseName'], d['localPort'], d['dockerName']
+
 
 def set_nummn():
     global num_mn
