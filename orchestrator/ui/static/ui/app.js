@@ -56,7 +56,7 @@
 
   function updateMeta() {
     const cseCount = state.topology.cses.length;
-    const aeCount = state.topology.aes.length;
+    const aeCount = state.topology.aes.filter(ae => ae.name !== 'CAdmin').length;
 
     if (topoMetaEl) {
       topoMetaEl.textContent =
@@ -93,12 +93,6 @@
           },
         },
         {
-          selector: 'node[type = "host"]',
-          style: {
-            "background-color": "#f0b429",
-          },
-        },
-        {
           selector: 'node[type = "in"]',
           style: {
             "background-color": "#2d6cdf",
@@ -131,27 +125,11 @@
             "width": 3,
           },
         },
-        {
-          selector: 'edge[type = "vpn"]',
-          style: {
-            "line-style": "dashed",
-            "line-color": "#2ca24d",
-            "target-arrow-color": "#2ca24d",
-          },
-        },
-        {
-          selector: 'edge[type = "host-link"]',
-          style: {
-            "line-style": "solid",
-            "line-color": "#f0b429",
-            "target-arrow-color": "#f0b429",
-          },
-        },
       ],
       layout: {
         name: "breadthfirst",
         directed: true,
-        roots: ["local-host"],
+        roots: ["in-cse"],
         padding: 40,
         spacingFactor: 1.25,
         animate: false,
@@ -169,26 +147,10 @@
     const elements = [
       {
         data: {
-          id: "local-host",
-          label: "Local Host",
-          type: "host",
-          statusText: "Local Host node",
-        },
-      },
-      {
-        data: {
           id: "in-cse",
           label: "IN-CSE\norchestration AE",
           type: "in",
           statusText: "IN-CSE / Orchestrator node",
-        },
-      },
-      {
-        data: {
-          id: "edge-host-in",
-          source: "local-host",
-          target: "in-cse",
-          type: "host-link",
         },
       },
     ];
@@ -218,18 +180,11 @@
           type: "registration",
         },
       });
-
-      elements.push({
-        data: {
-          id: `vpn-${cse.nodeId}`,
-          source: "local-host",
-          target: cse.nodeId,
-          type: "vpn",
-        },
-      });
     });
 
     state.topology.aes.forEach((ae) => {
+      if (ae.name === "CAdmin") return;
+
       elements.push({
         data: {
           id: ae.nodeId,
@@ -264,7 +219,7 @@
     cy.layout({
       name: "breadthfirst",
       directed: true,
-      roots: ["local-host"],
+      roots: ["in-cse"],
       padding: 40,
       spacingFactor: 1.25,
       animate: false,
@@ -374,7 +329,7 @@
 
     const parent = latestCse();
     if (!parent) {
-      hint.textContent = "Deploy a CSE first to attach an AE.";
+      hint.textContent = "No CSE deployed yet — AE will attach to IN-CSE.";
       return;
     }
 

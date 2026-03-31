@@ -126,8 +126,9 @@ def add_ae_to_topology(name: str = "", parent_node_id: str = "", parent_cse_id: 
         if not target_parent:
             target_parent = _latest_cse_node_id_locked()
 
+        # Fall back to IN-CSE node if no MN-CSE exists yet
         if not target_parent:
-            return None
+            target_parent = "in-cse"   # <-- this is the fix
 
         final_name = (name or "").strip() or _next_default_name("sample-ae", _topology_state["aes"])
 

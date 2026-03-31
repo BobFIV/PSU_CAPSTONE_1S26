@@ -68,6 +68,7 @@ def run_notification_receiver(port=7070) -> None:
     """
     global notification_receiver
     server_address = ('', port)
+    HTTPServer.allow_reuse_address = True
     notification_receiver = HTTPServer(server_address, NotificationReceiver)
     print(f'Starting notification receiver on port {port}')
     Thread(target=notification_receiver.serve_forever).start()
