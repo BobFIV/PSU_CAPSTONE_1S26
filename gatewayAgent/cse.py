@@ -4,6 +4,7 @@ from pathlib import Path
 from processData import parse_cin, parse_port
 from setup import *
 import time, requests
+import shutil
 
 #use container id or name-> if same, restart, if not, leave it and create new one.
 #currently it's deleting and creating but don't delete it
@@ -35,9 +36,11 @@ def start_CSE(id:str, name:str, loport:str, port:str, timeout:float=12)->bool:
             
     else:
         if num_mn==MAX_MN:
+            delete_config(name)
             print("Reached maximum number of MN-CSE")
             return False
         if loport in localports:
+            delete_config(name)
             print("Want to create? Port is already allocated")
             return False
         localports.append(loport)
@@ -199,3 +202,9 @@ def set_localports():
             if '->' in port_entry:
                 localports.append(parse_port(port_entry))
     # print(localports)
+
+def delete_config(dirname):
+    ini_path=os.path.join(grandparent, dirname)
+    p=Path(ini_path)
+    shutil.rmtree(p)
+

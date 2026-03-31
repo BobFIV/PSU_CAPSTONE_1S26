@@ -24,7 +24,8 @@ def register_AE(originator:str, application_name: str, url:str) -> bool:
             'rn': application_name, 
             'api': 'N.org.'+application_name,
             'rr': True,
-            'srv': ['4']
+            'srv': ['4'], #add lbl
+            'lbl': ['gatewayAgent']
         }
     }
 
