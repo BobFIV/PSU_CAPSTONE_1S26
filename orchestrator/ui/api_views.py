@@ -93,11 +93,13 @@ def api_gateway_data(request):
         cse_name = body.get("cseName", "")
         local_port = body.get("localPort", "")
         cse_id = body.get("cseID", "")
+        docker_name = body.get("dockerName", "") 
         deploy_type = body.get("deployType", "Deploy CSE")
 
         fields = {
             "cseName": cse_name,
             "localPort": local_port,
+            "dockerName": docker_name,  
             "cseID": cse_id,
         }
         lines = [

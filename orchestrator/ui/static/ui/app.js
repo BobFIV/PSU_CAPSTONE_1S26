@@ -16,7 +16,7 @@
 
   const state = {
     host: { ip: "", port: "", extra: "", deployedAction: null },
-    cse: { name: "", port: "", cseID: "", extra: "", deployedAction: null },
+    cse: { name: "", port: "", cseID: "", dockerName: "", extra: "", deployedAction: null },
     ae: { name: "", extra: "", deployedAction: null },
     topology: {
       version: 0,
@@ -382,16 +382,19 @@
     const name = root.querySelector('input[name="cse_name"]');
     const cseId = root.querySelector('input[name="cse_id"]');
     const port = root.querySelector('input[name="cse_port"]');
+    const dockerName = root.querySelector('input[name="cse_docker_name"]');
     const extra = root.querySelector('input[name="cse_extra"]');
 
     name.value = state.cse.name;
     cseId.value = state.cse.cseID;
     port.value = state.cse.port;
+    dockerName.value = state.cse.dockerName;
     extra.value = state.cse.extra;
 
     name.addEventListener("input", () => (state.cse.name = name.value));
     cseId.addEventListener("input", () => (state.cse.cseID = cseId.value));
     port.addEventListener("input", () => (state.cse.port = port.value));
+    dockerName.addEventListener("input", () => (state.cse.dockerName = dockerName.value));
     extra.addEventListener("input", () => (state.cse.extra = extra.value));
 
     if (state.cse.deployedAction) markSelected(root, state.cse.deployedAction);
@@ -405,6 +408,7 @@
           cseName: (state.cse.name || "").trim(),
           localPort: (state.cse.port || "").trim(),
           cseID: (state.cse.cseID || "").trim(),
+          dockerName: (state.cse.dockerName || "").trim(),
           deployType: btn.textContent.trim(),
         };
 
