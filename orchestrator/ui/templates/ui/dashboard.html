@@ -32,13 +32,21 @@
           <div class="wfTopoMeta" id="wfTopoMeta">0 MN-CSEs • 0 AEs</div>
         </div>
 
-        <div id="cyTopology" class="wfCy" aria-label="Dynamic network diagram"></div>
+        <!-- Diagram + Info Panel side by side -->
+        <div class="wfTopoBody">
+          <div id="cyTopology" class="wfCy" aria-label="Dynamic network diagram"></div>
+
+          <!-- Info panel — hidden until a node is clicked -->
+          <div class="wfInfoPanel" id="wfInfoPanel">
+            <div class="wfInfoPanelHeader">
+              <div class="wfInfoPanelTitle" id="wfInfoPanelTitle">Properties</div>
+              <button class="wfX" type="button" id="wfInfoPanelClose" aria-label="Close">✕</button>
+            </div>
+            <div class="wfInfoPanelBody" id="wfInfoPanelBody"></div>
+          </div>
+        </div>
 
         <div class="wfLegend">
-          <div class="wfLegendItem">
-            <span class="wfLegendSwatch wfLegendHost"></span>
-            <span>Local Host</span>
-          </div>
           <div class="wfLegendItem">
             <span class="wfLegendSwatch wfLegendIn"></span>
             <span>IN-CSE / Orchestrator</span>
@@ -81,7 +89,6 @@
   <div class="wfScreen">
     <div class="wfParam wfParamRed">
       <div class="wfParamTitle">parameter of the HOST PLATFORM</div>
-
       <div class="wfLines">
         <div class="wfLine">
           <span class="wfLineLabel">IP Address :</span>
@@ -107,7 +114,6 @@
           <li><button class="wfAction" data-action="deploy_cloud" type="button">Deploy Cloud</button></li>
         </ol>
       </div>
-
       <div class="wfBox wfBoxGreen">
         <ol class="wfList">
           <li>perhaps add new item for VPN</li>
@@ -122,7 +128,6 @@
   <div class="wfScreen">
     <div class="wfParam wfParamRed">
       <div class="wfParamTitle">parameter of the CSE</div>
-
       <div class="wfLines">
         <div class="wfLine">
           <span class="wfLineLabel">CSE Name</span>
@@ -163,9 +168,7 @@
   <div class="wfScreen">
     <div class="wfParam wfParamRed">
       <div class="wfParamTitle">parameter of the AE</div>
-
       <div class="wfMiniNote" id="aeTargetHint">Deploy a CSE first to attach an AE.</div>
-
       <div class="wfLines">
         <div class="wfLine">
           <span class="wfLineLabel">AE Name</span>

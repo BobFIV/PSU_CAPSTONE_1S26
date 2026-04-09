@@ -17,11 +17,29 @@ def api_status(request):
 
 @require_http_methods(["GET"])
 def api_topology(request):
-    services.sync_topology_from_cse()   # <-- pull live data first
+    services.sync_topology_from_cse()
     return JsonResponse({
         "success": True,
         "topology": services.get_topology_snapshot(),
     })
+
+
+@require_http_methods(["GET"])
+def api_node_info(request):
+    """
+    GET /api/node/info/?type=<node_type>&name=<resource_name>
+    Queries the IN-CSE directly for the resource properties.
+    node_type: 'in', 'mn', 'ae'
+    name: resource name (e.g. 'gatewayAgent', 'cse-mn1')
+    """
+    node_type = request.GET.get("type", "")
+    name = request.GET.get("name", "")
+
+    if not node_type:
+        return JsonResponse({"success": False, "message": "Missing type parameter"})
+
+    result = services.query_node_properties(node_type, name)
+    return JsonResponse(result)
 
 
 @require_http_methods(["POST"])
@@ -93,14 +111,14 @@ def api_gateway_data(request):
         cse_name = body.get("cseName", "")
         local_port = body.get("localPort", "")
         cse_id = body.get("cseID", "")
-        docker_name = body.get("dockerName", "") 
         deploy_type = body.get("deployType", "Deploy CSE")
+        docker_name = body.get("dockerName", "")
 
         fields = {
             "cseName": cse_name,
             "localPort": local_port,
-            "dockerName": docker_name,  
             "cseID": cse_id,
+            "dockerName": docker_name,
         }
         lines = [
             f"{key}={value.strip()}"

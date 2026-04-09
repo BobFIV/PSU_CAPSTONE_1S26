@@ -371,3 +371,87 @@ def sync_topology_from_cse():
             deploy_type='Discovered from IN-CSE',
             source='cse-discovery',
         )
+def query_node_properties(node_type: str, name: str) -> dict:
+    """
+    Query the IN-CSE directly for a resource's properties.
+    node_type: 'in'  -> query the CSE base (m2m:cb)
+               'mn'  -> query remoteCSE by name (m2m:csr)
+               'ae'  -> query AE by name (m2m:ae)
+    name: the resource name (rn) on the CSE
+    """
+    import requests as _requests
+
+    headers = {
+        'X-M2M-Origin': originator_gateway_control,
+        'X-M2M-RI': randomID(),
+        'X-M2M-RVI': '4',
+        'Accept': 'application/json',
+    }
+
+    try:
+        if node_type == 'in':
+            url = cse_url
+        elif node_type in ('mn', 'ae'):
+            if not name:
+                return {"success": False, "message": "Resource name required"}
+            url = f"{cse_url}/{name}"
+        else:
+            return {"success": False, "message": f"Unknown node type: {node_type}"}
+
+        r = _requests.get(url, headers=headers, timeout=5)
+
+        if r.status_code != 200:
+            return {
+                "success": False,
+                "message": f"CSE returned {r.status_code}",
+                "raw": r.text[:300] if r.text else "",
+            }
+
+        data = r.json()
+
+        # Extract the inner resource object regardless of wrapper key
+        resource = None
+        for key in ('m2m:cb', 'm2m:ae', 'm2m:csr'):
+            if key in data:
+                resource = data[key]
+                resource_type = key
+                break
+
+        if resource is None:
+            return {"success": False, "message": "Unrecognised resource format", "raw": data}
+
+        # Build a clean human-readable properties dict
+        label_map = {
+            'rn':   'Resource Name',
+            'ri':   'Resource ID',
+            'pi':   'Parent ID',
+            'ct':   'Created At',
+            'lt':   'Last Modified',
+            'csi':  'CSE ID',
+            'csn':  'CSE Name',
+            'cst':  'CSE Type',
+            'srt':  'Supported Resource Types',
+            'srv':  'Supported Release Versions',
+            'poa':  'Point of Access',
+            'api':  'App ID',
+            'aei':  'AE ID',
+            'rr':   'Request Reachability',
+            'nl':   'Node Link',
+            'lbl':  'Labels',
+        }
+
+        props = {}
+        for k, v in resource.items():
+            label = label_map.get(k, k)
+            props[label] = v
+
+        return {
+            "success": True,
+            "resourceType": resource_type,
+            "properties": props,
+        }
+
+    except _requests.RequestException as e:
+        return {"success": False, "message": f"Request failed: {e}"}
+    except Exception as e:
+        return {"success": False, "message": f"Error: {e}"}

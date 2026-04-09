@@ -8,6 +8,10 @@
   const statusEl = document.getElementById("wfStatus");
   const topoMetaEl = document.getElementById("wfTopoMeta");
   const cyContainer = document.getElementById("cyTopology");
+  const infoPanel = document.getElementById("wfInfoPanel");
+  const infoPanelTitle = document.getElementById("wfInfoPanelTitle");
+  const infoPanelBody = document.getElementById("wfInfoPanelBody");
+  const infoPanelClose = document.getElementById("wfInfoPanelClose");
 
   const tpl = (id) => document.getElementById(id).content.cloneNode(true);
 
@@ -27,9 +31,7 @@
   };
 
   function setStatus(msg) {
-    if (statusEl) {
-      statusEl.textContent = msg;
-    }
+    if (statusEl) statusEl.textContent = msg;
   }
 
   function normalizeTopology(topology) {
@@ -57,13 +59,63 @@
   function updateMeta() {
     const cseCount = state.topology.cses.length;
     const aeCount = state.topology.aes.filter(ae => ae.name !== 'CAdmin').length;
-
     if (topoMetaEl) {
       topoMetaEl.textContent =
         `${cseCount} MN-CSE${cseCount === 1 ? "" : "s"} • ` +
         `${aeCount} AE${aeCount === 1 ? "" : "s"}`;
     }
   }
+
+  // ── Info Panel ────────────────────────────────────────────────
+  function showInfoPanel(title, htmlContent) {
+    infoPanelTitle.textContent = title;
+    infoPanelBody.innerHTML = htmlContent;
+    infoPanel.classList.add("open");
+  }
+
+  function hideInfoPanel() {
+    infoPanel.classList.remove("open");
+    infoPanelBody.innerHTML = "";
+  }
+
+  infoPanelClose.addEventListener("click", hideInfoPanel);
+
+  async function fetchNodeInfo(nodeType, resourceName) {
+    showInfoPanel(resourceName || "IN-CSE", `<div class="wfInfoLoading">Loading…</div>`);
+    try {
+      const params = new URLSearchParams({ type: nodeType, name: resourceName || "" });
+      const res = await fetch(`/api/node/info/?${params}`);
+      const data = await res.json();
+
+      if (!data.success) {
+        showInfoPanel(resourceName || "IN-CSE",
+          `<div class="wfInfoError">⚠ ${data.message || "Failed to fetch"}</div>`);
+        return;
+      }
+
+      const props = data.properties || {};
+      const rows = Object.entries(props).map(([k, v]) => {
+        const val = Array.isArray(v) ? v.join(", ") : String(v);
+        return `<tr><td class="wfInfoKey">${k}</td><td class="wfInfoVal">${val}</td></tr>`;
+      }).join("");
+
+      const typeLabel = {
+        "m2m:cb":  "CSE Base",
+        "m2m:ae":  "Application Entity",
+        "m2m:csr": "Remote CSE",
+      }[data.resourceType] || data.resourceType || "";
+
+      showInfoPanel(
+        resourceName || "IN-CSE",
+        `<div class="wfInfoType">${typeLabel}</div>
+         <table class="wfInfoTable"><tbody>${rows}</tbody></table>`
+      );
+    } catch (e) {
+      showInfoPanel(resourceName || "IN-CSE",
+        `<div class="wfInfoError">⚠ Request failed: ${e}</div>`);
+    }
+  }
+  // ─────────────────────────────────────────────────────────────
 
   function ensureCytoscape() {
     if (cy || !window.cytoscape || !cyContainer) return;
@@ -94,17 +146,11 @@
         },
         {
           selector: 'node[type = "in"]',
-          style: {
-            "background-color": "#2d6cdf",
-            "color": "#ffffff",
-          },
+          style: { "background-color": "#2d6cdf", "color": "#ffffff" },
         },
         {
           selector: 'node[type = "mn"]',
-          style: {
-            "background-color": "#2ca24d",
-            "color": "#ffffff",
-          },
+          style: { "background-color": "#2ca24d", "color": "#ffffff" },
         },
         {
           selector: 'node[type = "ae"]',
@@ -140,6 +186,7 @@
     cy.on("tap", "node", (event) => {
       const data = event.target.data();
       setStatus(data.statusText || data.label);
+      fetchNodeInfo(data.type, data.resourceName);
     });
   }
 
@@ -150,6 +197,7 @@
           id: "in-cse",
           label: "IN-CSE\norchestration AE",
           type: "in",
+          resourceName: "",
           statusText: "IN-CSE / Orchestrator node",
         },
       },
@@ -165,6 +213,7 @@
           id: cse.nodeId,
           label: labelParts.join("\n"),
           type: "mn",
+          resourceName: cse.name || "",
           statusText:
             `${cse.name || "MN-CSE"}` +
             `${cse.cseID ? ` (${cse.cseID})` : ""}` +
@@ -190,6 +239,7 @@
           id: ae.nodeId,
           label: ae.name || "AE",
           type: "ae",
+          resourceName: ae.name || "",
           statusText: `AE: ${ae.name || "AE"}`,
         },
       });
@@ -209,11 +259,7 @@
 
   function renderTopology() {
     ensureCytoscape();
-    if (!cy) {
-      setStatus("Cytoscape failed to load.");
-      return;
-    }
-
+    if (!cy) { setStatus("Cytoscape failed to load."); return; }
     cy.elements().remove();
     cy.add(topologyElements());
     cy.layout({
@@ -230,7 +276,6 @@
     try {
       const res = await fetch(url, options);
       const text = await res.text();
-
       try {
         return JSON.parse(text);
       } catch {
@@ -241,10 +286,7 @@
         };
       }
     } catch (e) {
-      return {
-        success: false,
-        message: String(e),
-      };
+      return { success: false, message: String(e) };
     }
   }
 
@@ -259,19 +301,14 @@
   async function syncTopologyFromBackend(silent = false) {
     const topology = await fetchTopologyFromBackend();
     if (!topology) {
-      if (!silent) {
-        setStatus("Failed to sync topology from backend");
-      }
+      if (!silent) setStatus("Failed to sync topology from backend");
       return false;
     }
-
     const currentVersion = state.topology.version || 0;
     applyTopology(topology);
-
     if (!silent && topology.version !== currentVersion) {
       setStatus("Topology synced from backend");
     }
-
     return true;
   }
 
@@ -326,13 +363,11 @@
   function refreshAeTargetHint(root) {
     const hint = root.querySelector("#aeTargetHint");
     if (!hint) return;
-
     const parent = latestCse();
     if (!parent) {
       hint.textContent = "No CSE deployed yet — AE will attach to IN-CSE.";
       return;
     }
-
     hint.textContent =
       `New AEs will attach to: ${parent.name}` +
       `${parent.cseID ? ` (${parent.cseID})` : ""}`;
@@ -505,9 +540,7 @@
   }
 
   document.querySelectorAll(".wfNavItem").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      openModal(btn.dataset.open);
-    });
+    btn.addEventListener("click", () => openModal(btn.dataset.open));
   });
 
   btnCloseX.addEventListener("click", closeModal);
@@ -527,7 +560,6 @@
   renderTopology();
   updateMeta();
   setStatus("Topology ready");
-
   syncTopologyFromBackend(true);
   startTopologyPolling();
 })();
