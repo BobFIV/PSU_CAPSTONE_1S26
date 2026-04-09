@@ -4,14 +4,15 @@
 def process_cin(data:str):
     return data['m2m:sgn']['nev']['rep']['m2m:cin']
 
+
 def parse_cin(data):
-    #"csename=df"
-    lst=data.strip().split('\n')
-    d={}
+    lst = [field for field in data.strip().split('\n') if field.strip()]
+    d = {}
     for field in lst:
-        l=field.split("=")
-        section, info = l[0], l[1]
-        d[section]=info
+        if "=" not in field:
+            continue
+        section, info = field.split("=", 1)
+        d[section] = info
     return d
 
 def parse_port(data):
