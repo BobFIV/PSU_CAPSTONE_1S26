@@ -349,10 +349,6 @@ def discover_resources_from_cse() -> dict:
 
 
 def sync_topology_from_cse():
-    """
-    Pull live resource data from IN-CSE and upsert into topology state.
-    Called by the topology API endpoint so the frontend always gets fresh data.
-    """
     discovered = discover_resources_from_cse()
 
     for cse in discovered['cses']:
@@ -364,10 +360,12 @@ def sync_topology_from_cse():
             source='cse-discovery',
         )
 
-    # For AEs, attach to matching CSE by cseID or fall back to latest
     for ae in discovered['aes']:
+        if ae['name'] == 'CAdmin':
+            continue
         add_ae_to_topology(
             name=ae['name'],
+            parent_node_id='in-cse',   # <-- always attach to IN-CSE
             deploy_type='Discovered from IN-CSE',
             source='cse-discovery',
         )
