@@ -3,6 +3,8 @@ import platform
 import shutil
 import subprocess
 from pathlib import Path
+from typing import Optional
+
 
 import requests
 
@@ -16,7 +18,7 @@ from setup import (
 )
 
 
-def _run_command(cmd: list[str], check: bool = True, input_text: str | None = None) -> subprocess.CompletedProcess:
+def _run_command(cmd: list[str], check: bool = True, input_text: Optional[str] = None) -> subprocess.CompletedProcess:
     return subprocess.run(
         cmd,
         check=check,
@@ -120,7 +122,7 @@ def enable_on_boot(interface: str) -> None:
     print(f"Persistent startup for {interface}: {status.stdout.strip()}")
 
 
-def report_public_key(peer_name: str, public_key: str, metadata: dict | None = None) -> None:
+def report_public_key(peer_name: str, public_key: str, metadata: Optional[dict] = None) -> None:
     url = orchestrator_base_url.rstrip("/") + wireguard_peer_report_path
     response = requests.post(
         url,
