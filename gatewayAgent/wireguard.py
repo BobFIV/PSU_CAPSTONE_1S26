@@ -116,6 +116,8 @@ def enable_on_boot(interface: str) -> None:
         print(f"Skipping persistent enable for {interface}: systemctl is unavailable on this host")
         return
     _run_command(["systemctl", "enable", f"wg-quick@{interface}"])
+    status = _run_command(["systemctl", "is-enabled", f"wg-quick@{interface}"])
+    print(f"Persistent startup for {interface}: {status.stdout.strip()}")
 
 
 def report_public_key(peer_name: str, public_key: str, metadata: dict | None = None) -> None:
@@ -154,5 +156,6 @@ def configure_wireguard(peer_name: str, payload: dict) -> str:
         return public_key
 
     bring_up_interface(interface)
+    print(f"WireGuard interface {interface} brought up successfully")
     enable_on_boot(interface)
     return public_key

@@ -3,7 +3,12 @@ from unittest.mock import patch
 
 from django.test import Client, TestCase
 
-from .wireguard_state import SERVER_CONFIG_FILE, STATE_FILE
+from .wireguard_state import (
+    SERVER_CONFIG_FILE,
+    SERVER_FULL_CONFIG_FILE,
+    SERVER_SETTINGS_FILE,
+    STATE_FILE,
+)
 
 
 class GatewayApiTests(TestCase):
@@ -13,6 +18,10 @@ class GatewayApiTests(TestCase):
             STATE_FILE.unlink()
         if SERVER_CONFIG_FILE.exists():
             SERVER_CONFIG_FILE.unlink()
+        if SERVER_SETTINGS_FILE.exists():
+            SERVER_SETTINGS_FILE.unlink()
+        if SERVER_FULL_CONFIG_FILE.exists():
+            SERVER_FULL_CONFIG_FILE.unlink()
 
     @patch("ui.api_views.services.send_command_to_gateway", return_value=(True, 200, ""))
     @patch("ui.api_views.services.send_data_to_gateway", return_value=(True, 200, ""))
@@ -90,3 +99,44 @@ class GatewayApiTests(TestCase):
         self.assertIn("PublicKey = pubkey123", config_text)
         self.assertIn("AllowedIPs = 10.0.0.2/24", config_text)
         self.assertIn("PersistentKeepalive = 30", config_text)
+
+    def test_wireguard_server_full_config_generation(self):
+        settings_response = self.client.post(
+            "/api/wireguard/server-settings/",
+            data=json.dumps(
+                {
+                    "address": "10.0.0.1/24",
+                    "listen_port": "51820",
+                    "private_key": "server-private-key",
+                    "post_up": "iptables -A FORWARD -i wg0 -j ACCEPT",
+                    "post_down": "iptables -D FORWARD -i wg0 -j ACCEPT",
+                }
+            ),
+            content_type="application/json",
+        )
+        self.assertEqual(settings_response.status_code, 200)
+
+        self.client.post(
+            "/api/wireguard/peers/",
+            data=json.dumps(
+                {
+                    "peerName": "gatewayAgent",
+                    "publicKey": "pubkey123",
+                    "metadata": {
+                        "address": "10.0.0.2/24",
+                        "persistentKeepalive": 30,
+                    },
+                }
+            ),
+            content_type="application/json",
+        )
+
+        response = self.client.get("/api/wireguard/server-full-config/")
+        self.assertEqual(response.status_code, 200)
+        config_text = response.json()["config"]
+        self.assertIn("[Interface]", config_text)
+        self.assertIn("Address = 10.0.0.1/24", config_text)
+        self.assertIn("ListenPort = 51820", config_text)
+        self.assertIn("PrivateKey = server-private-key", config_text)
+        self.assertIn("[Peer]", config_text)
+        self.assertIn("PublicKey = pubkey123", config_text)

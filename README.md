@@ -81,6 +81,18 @@ Generated server-side WireGuard peer config can be queried from:
 curl http://127.0.0.1:8000/api/wireguard/server-config/
 ```
 
+Server-side WireGuard interface settings can be managed with:
+
+```sh
+curl http://127.0.0.1:8000/api/wireguard/server-settings/
+```
+
+Full server-side WireGuard config, including `[Interface]` and generated `[Peer]` blocks, can be queried from:
+
+```sh
+curl http://127.0.0.1:8000/api/wireguard/server-full-config/
+```
+
 For local macOS code-path testing without root privileges, run the gateway with:
 
 ```sh
@@ -97,7 +109,8 @@ The following WireGuard-related changes were added:
 4. The gateway reports its generated public key back to the orchestrator through `POST /api/wireguard/peers/`.
 5. The orchestrator stores reported peer keys and metadata in `orchestrator/ui/data/wireguard_peers.json`.
 6. The orchestrator automatically generates server-side peer config in `orchestrator/ui/data/wireguard_server_peers.conf`.
-7. The existing MN-CSE deployment flow continues after the WireGuard handling step.
+7. The orchestrator can now generate a full server-side WireGuard config in `orchestrator/ui/data/wireguard_server_full.conf`.
+8. The existing MN-CSE deployment flow continues after the WireGuard handling step.
 
 ## WireGuard Test Steps
 
@@ -155,6 +168,23 @@ ls -la /Users/taehyunkim/capstone/PSU_CAPSTONE_1S26/gatewayAgent/.wg
 curl http://127.0.0.1:8000/api/wireguard/peers/
 curl http://127.0.0.1:8000/api/wireguard/server-config/
 cat /Users/taehyunkim/capstone/PSU_CAPSTONE_1S26/orchestrator/ui/data/wireguard_server_peers.conf
+```
+
+5a. Optional: define server-side WireGuard interface settings and confirm full config generation:
+
+```sh
+curl -X POST http://127.0.0.1:8000/api/wireguard/server-settings/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "address":"10.0.0.1/24",
+    "listen_port":"51820",
+    "private_key":"<server-private-key>",
+    "post_up":"iptables -A FORWARD -i wg0 -j ACCEPT",
+    "post_down":"iptables -D FORWARD -i wg0 -j ACCEPT"
+  }'
+
+curl http://127.0.0.1:8000/api/wireguard/server-full-config/
+cat /Users/taehyunkim/capstone/PSU_CAPSTONE_1S26/orchestrator/ui/data/wireguard_server_full.conf
 ```
 
 6. Optional macOS interface bring-up test:

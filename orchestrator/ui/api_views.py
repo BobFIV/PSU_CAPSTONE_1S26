@@ -5,7 +5,16 @@ from django.views.decorators.csrf import csrf_exempt
 
 from . import services
 from .setup import cse_url
-from .wireguard_state import get_server_config, list_peers, save_peer, write_server_config
+from .wireguard_state import (
+    get_full_server_config,
+    get_server_config,
+    get_server_settings,
+    list_peers,
+    save_peer,
+    save_server_settings,
+    write_full_server_config,
+    write_server_config,
+)
 
 
 @require_http_methods(["GET"])
@@ -145,5 +154,41 @@ def api_wireguard_server_config(request):
             "success": True,
             "config": config_text,
             "path": config_info["path"],
+        }
+    )
+
+
+@require_http_methods(["GET", "POST"])
+@csrf_exempt
+def api_wireguard_server_settings(request):
+    """GET/POST server-side WireGuard interface settings used to build the full server config."""
+    if request.method == "GET":
+        return JsonResponse({"success": True, "settings": get_server_settings()})
+
+    try:
+        body = json.loads(request.body) if request.body else {}
+    except json.JSONDecodeError:
+        return JsonResponse({"success": False, "message": "Invalid JSON body"}, status=400)
+
+    settings = save_server_settings(body)
+    return JsonResponse({"success": True, "settings": settings})
+
+
+@require_http_methods(["GET", "POST"])
+@csrf_exempt
+def api_wireguard_server_full_config(request):
+    """GET/POST the full server-side WireGuard config including [Interface] and generated [Peer] blocks."""
+    if request.method == "POST":
+        config_text = write_full_server_config()
+    else:
+        config_text = get_full_server_config()["config_text"]
+
+    config_info = get_full_server_config()
+    return JsonResponse(
+        {
+            "success": True,
+            "config": config_text,
+            "path": config_info["path"],
+            "settings": get_server_settings(),
         }
     )

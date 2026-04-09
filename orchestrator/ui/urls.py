@@ -9,4 +9,6 @@ urlpatterns = [
     path("api/gateway/data/", api_views.api_gateway_data, name="api_gateway_data"),
     path("api/wireguard/peers/", api_views.api_wireguard_peers, name="api_wireguard_peers"),
     path("api/wireguard/server-config/", api_views.api_wireguard_server_config, name="api_wireguard_server_config"),
+    path("api/wireguard/server-settings/", api_views.api_wireguard_server_settings, name="api_wireguard_server_settings"),
+    path("api/wireguard/server-full-config/", api_views.api_wireguard_server_full_config, name="api_wireguard_server_full_config"),
 ]
