@@ -19,7 +19,6 @@ import atexit
 from start import start_CSE, update_config, read_config, stop_CSE, set_nummn, set_localports
 
 from processData import process_cin, parse_cin
-from wireguard import configure_wireguard
 
 # import sys
 
@@ -74,17 +73,7 @@ while True: #stop when no notification, don't keep retrieving
                     #gateway is late so this cin can be already old=>concern
                     cin_data=retrieve_contentinstance(originator, application_path+'/data/la') #only la needed for data
                     # print(cin_data)
-                    cin_fields = parse_cin(cin_data['con'])
-
-                    if cin_fields.get('vpnType', '').lower() == 'wireguard':
-                        try:
-                            public_key = configure_wireguard(application_name, cin_fields)
-                            print(f"WireGuard configured successfully; peer public key: {public_key}")
-                        except Exception as e:
-                            print(f"WireGuard configuration failed: {e}")
-                            continue
-
-                    if 'cseName' in cin_fields: #condition
+                    if 'cseName' in cin_data['con']: #condition
                         mn_id, mn_name, mn_loport, docker_name=update_config(cin_data['con'])
                         mn_port=read_config(f'{docker_name}/acme.ini', 'httpPort')
                         mn_url=f'http://localhost:{mn_loport}/~/{mn_id}/{mn_name}'
@@ -131,3 +120,4 @@ while True: #stop when no notification, don't keep retrieving
     atexit.register(lambda:unregister_AE(originator, application_name))
     atexit.register(lambda:stop_notification_receiver())
 # atexit.register(lambda:stop_CSE())
+

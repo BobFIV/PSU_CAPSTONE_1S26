@@ -20,12 +20,6 @@ MAX_MN=2
 localports=[]
 num_mn=0
 # not create ini folder if reached maximum (or cse not started)
-orchestrator_base_url = os.environ.get("ORCHESTRATOR_BASE_URL", "http://localhost:8000")
-wireguard_peer_report_path = "/api/wireguard/peers/"
-wireguard_default_interface = os.environ.get("WG_INTERFACE", "wg0")
-wireguard_config_dir = os.environ.get("WG_CONFIG_DIR", "/etc/wireguard")
-wireguard_key_dir = os.environ.get("WG_KEY_DIR", wireguard_config_dir)
-wireguard_skip_interface_up = os.environ.get("WG_SKIP_INTERFACE_UP", "").lower() in {"1", "true", "yes"}
 
 # container_name='cmd'
 # container_path=application_path+'/'+container_name
