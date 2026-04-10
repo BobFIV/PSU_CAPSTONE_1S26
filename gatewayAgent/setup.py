@@ -5,6 +5,10 @@ import os
 from dotenv import load_dotenv
 from config import GatewayConfig
 
+import docker
+
+client = docker.from_env()
+
 # Setup variables
 # cse_url = 'http://localhost:8080/~/id-in/cse-in'            # The url of the CSE - use host port of 8081 for mn1, 8080 for in
 # notificationURIs = ['http://host.docker.internal:9000']                # The notification target
@@ -24,15 +28,18 @@ originator = cfg.originator_id
 application_name = cfg.application_name
 subscription_name = cfg.subscription_name
 image = cfg.image
-MAX_MN = cfg.max_mn
+acme_image=cfg.acme_image
+# MAX_MN = cfg.max_mn
 notificationURIs = [cfg.callback_url]
+host_cse_base=cfg.host_cse_base_dir
+cnt_cse_base=cfg.cnt_cse_base_dir
 
 application_path = cse_url + "/" + application_name
-parent=os.path.dirname(__file__)
-grandparent=os.path.dirname(parent)
+# parent=os.path.dirname(__file__)
+# grandparent=os.path.dirname(parent)
 notify_q=Queue()
-localports=[]
-num_mn=0
+# localports=[]
+# num_mn=0
 # not create ini folder if reached maximum (or cse not started)
 
 # container_name='cmd'

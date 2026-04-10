@@ -16,7 +16,7 @@ from notificationReceiver import run_notification_receiver, stop_notification_re
 
 import atexit
 
-from cse import start_CSE, update_config, read_config, stop_CSE, set_nummn, set_localports
+from cse import start_CSE, update_config, read_config
 
 from processData import process_cin, parse_cin
 
@@ -27,8 +27,8 @@ from processData import process_cin, parse_cin
 
 # Start the notification server first
 run_notification_receiver()
-set_nummn()
-set_localports()
+# set_nummn()
+# set_localports()
 # print(localports)
 
 
@@ -79,9 +79,9 @@ while True: #stop when no notification, don't keep retrieving
                     if 'cseName' in cin_data['con']: #condition
                         mn_id, mn_name, mn_loport, docker_name=update_config(cin_data['con'])
                         mn_port=read_config(f'{docker_name}/acme.ini', 'httpPort')
-                        mn_url=f'http://localhost:{mn_loport}/~/{mn_id}/{mn_name}'
-                        
-                        if start_CSE(mn_id, docker_name, mn_loport, mn_port): #container name==cse name-> don't give name
+                        # mn_url=f'http://localhost:{mn_loport}/~/{mn_id}/{mn_name}' #mn_loport(pi port):cseport
+                        mn_url=f'http://host.docker.internal:{mn_loport}/~/{mn_id}/{mn_name}' #change to pi url
+                        if start_CSE(mn_id, docker_name, mn_loport, mn_port, mn_url): #container name==cse name-> don't give name
                             register_AE('CgatewayAgentMN', 'gatewayAgentMN', mn_url)
                 except KeyError:
                     print("CIN does not exist in data")

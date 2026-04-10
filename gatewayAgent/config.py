@@ -14,7 +14,11 @@ class GatewayConfig:
     application_name: str
     subscription_name: str
     image: str
+    acme_image:str
+    host_cse_base_dir:str
+    cnt_cse_base_dir:str
     log_level: str = "INFO"
+    
 
     tls_enabled: bool = False
     tls_verify: bool = True
@@ -22,7 +26,7 @@ class GatewayConfig:
     tls_client_cert: str | None = None
     tls_client_key: str | None = None
 
-    max_mn: str|None=None
+    # max_mn: str|None=None
 
     @classmethod
     def from_env(cls) -> "GatewayConfig":
@@ -33,7 +37,11 @@ class GatewayConfig:
             application_name=os.environ["APPLICATION_NAME"],
             subscription_name=os.environ["SUBSCRIPTION_NAME"],
             image=os.environ["IMAGE"],
+            acme_image=os.environ["ACME_IMAGE"],
+            host_cse_base_dir=os.environ["HOST_CSE_BASE_DIR"],
+            cnt_cse_base_dir=os.environ["CONTAINER_CSE_BASE_DIR"],
             log_level=os.getenv("LOG_LEVEL", "INFO"),
+            
 
             tls_enabled=as_bool(os.getenv("TLS_ENABLED"), False),
             tls_verify=as_bool(os.getenv("TLS_VERIFY"), True),
@@ -41,7 +49,7 @@ class GatewayConfig:
             tls_client_cert=os.getenv("TLS_CLIENT_CERT"),
             tls_client_key=os.getenv("TLS_CLIENT_KEY"),
 
-            max_mn=int(os.getenv("MAX_MN", "2"))
+            # max_mn=int(os.getenv("MAX_MN", "2"))
         )
         cfg.validate()
         return cfg
@@ -59,6 +67,12 @@ class GatewayConfig:
             raise ValueError("SUBSCRIPTION_NAME is required")
         if not self.image:
             raise ValueError("IMAGE is required")
+        if not self.acme_image:
+            raise ValueError("ACME_IMAGE is required")
+        if not self.host_cse_base_dir:
+            raise ValueError("HOST_CSE_BASE_DIR is required")
+        if not self.cnt_cse_base_dir:
+            raise ValueError("CNT_CSE_BASE_DIR is required")
 
         if self.tls_enabled:
             if self.tls_verify and self.tls_ca_cert is None:
