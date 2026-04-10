@@ -373,6 +373,13 @@
       `${parent.cseID ? ` (${parent.cseID})` : ""}`;
   }
 
+  async function provision_host() {
+    return await fetchJson("/api/provision/host/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
   function bindHost(root) {
     const ip = root.querySelector('input[name="host_ip"]');
     const port = root.querySelector('input[name="host_port"]');
@@ -389,10 +396,26 @@
     if (state.host.deployedAction) markSelected(root, state.host.deployedAction);
 
     root.querySelectorAll(".wfAction").forEach((btn) => {
-      btn.addEventListener("click", () => {
+      btn.addEventListener("click", async () => {
         state.host.deployedAction = btn.dataset.action;
         markSelected(root, state.host.deployedAction);
-        enableBackToTopology(`Host step saved (${btn.textContent.trim()})`);
+        if (btn.dataset.action === "deploy_local") {
+          try {
+            const data = await provision_host();
+
+            if (data.success) {
+              enableBackToTopology("Host deployed locally");
+            } else {
+              enableBackToTopology("Deployment failed");
+            }
+          } catch (err) {
+            console.error(err);
+            enableBackToTopology("Error deploying host");
+          }
+        } else {
+          enableBackToTopology(`Host step saved (${btn.textContent.trim()})`);
+        }
+        //enableBackToTopology(`Host step saved (${btn.textContent.trim()})`);
       });
     });
   }
