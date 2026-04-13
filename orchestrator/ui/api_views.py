@@ -174,3 +174,16 @@ def api_gateway_data(request):
         out["cmd_cse_response"] = (cse_cmd or "")[:500]
 
     return JsonResponse(out)
+
+@require_http_methods(["POST"])
+@csrf_exempt
+def api_provision_host(request):
+    try:
+        success = services.initialize_provision_host()
+        if success:
+            return JsonResponse({"success": True})
+        else:
+            return JsonResponse({"success": False})
+    except Exception as e:
+        print(e)                                #will be changed to logger
+        return JsonResponse({"success": False})

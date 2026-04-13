@@ -28,7 +28,7 @@ def create_node(originator: str, path: str, rn: str) -> bool:
         'm2m:nod': {   
             'rn': rn,
             # optional:
-            # 'ni': rn,
+            'ni': rn,
             # 'lbl': ['node']
         }
     }
@@ -58,9 +58,9 @@ def create_flex_container(originator: str, path: str, rn: str) -> bool:
     }
 
     body = {
-        'm2m:fcn': {
+        'mad:fleNe': { #I am getting an attribute error here, fix: 'mad:fleNe'
             'rn': rn,
-            'cnd': 'org.onem2m.common.moduleclass.custom' #the custom here I belive can be changed
+            'cnd': 'org.onem2m.management.device.flexNode' #the custom here I belive can be changed, I found the docs for flexnode
         }
     }
 

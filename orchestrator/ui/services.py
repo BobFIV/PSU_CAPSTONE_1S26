@@ -10,6 +10,8 @@ from .subscription import create_subscription
 from .contentInstance import create_contentInstance, create_contentInstance_with_response
 from .notificationReceiver import run_notification_receiver, stop_notification_receiver
 
+from .node_flexnode_for_provision_host import create_node, create_flex_container
+
 registration_status = "Not connected to IN-CSE"
 final_registration_status = "Not Connected to IN-CSE"
 
@@ -453,3 +455,24 @@ def query_node_properties(node_type: str, name: str) -> dict:
         return {"success": False, "message": f"Request failed: {e}"}
     except Exception as e:
         return {"success": False, "message": f"Error: {e}"}
+    
+def initialize_provision_host() -> bool:
+    try:
+        created = create_node(originator_gateway_control,cse_url,"gw-node-01")
+        if created:
+            print("node created Successfully") #will be changed to logger statement
+            node_path = cse_url + '/' + "gw-node-01"
+            flex_node_created = create_flex_container(originator_gateway_control,node_path,"resources")
+            if flex_node_created:
+                print("Node / Flexnode created") #will be changed to logger statement
+                return True
+            else:
+                print("flex container not created") #will be changed to logger statement
+                return False
+        else:
+            print ("error in creating Node / flexnode") #will be changed to logger statement
+            return False
+    except Exception as e:
+        print("major error in creating node / flexnode") #will be changed to logger statement
+        return False
+

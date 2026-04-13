@@ -9,4 +9,5 @@ urlpatterns = [
     path("api/node/info/", api_views.api_node_info, name="api_node_info"),
     path("api/gateway/command/", api_views.api_gateway_command, name="api_gateway_command"),
     path("api/gateway/data/", api_views.api_gateway_data, name="api_gateway_data"),
+    path("api/provision/host/", api_views.api_provision_host, name="api_provision_host"),
 ]
