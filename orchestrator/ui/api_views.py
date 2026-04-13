@@ -5,6 +5,16 @@ from django.views.decorators.csrf import csrf_exempt
 
 from . import services
 from .setup import cse_url
+from .wireguard_state import (
+    get_full_server_config,
+    get_server_config,
+    get_server_settings,
+    list_peers,
+    save_peer,
+    save_server_settings,
+    write_full_server_config,
+    write_server_config,
+)
 
 
 @require_http_methods(["GET"])
@@ -113,8 +123,24 @@ def api_gateway_data(request):
         cse_id = body.get("cseID", "")
         deploy_type = body.get("deployType", "Deploy CSE")
         docker_name = body.get("dockerName", "")
+        vpn_type = body.get("vpnType", "")
+        wg_interface = body.get("wgInterface", "")
+        wg_address = body.get("wgAddress", "")
+        wg_server_public_key = body.get("wgServerPublicKey", "")
+        wg_endpoint = body.get("wgEndpoint", "")
+        wg_allowed_ips = body.get("wgAllowedIPs", "")
+        wg_persistent_keepalive = body.get("wgPersistentKeepalive", "")
+        wg_listen_port = body.get("wgListenPort", "")
 
         fields = {
+            "vpnType": vpn_type,
+            "wgInterface": wg_interface,
+            "wgAddress": wg_address,
+            "wgServerPublicKey": wg_server_public_key,
+            "wgEndpoint": wg_endpoint,
+            "wgAllowedIPs": wg_allowed_ips,
+            "wgPersistentKeepalive": str(wg_persistent_keepalive).strip(),
+            "wgListenPort": str(wg_listen_port).strip(),
             "cseName": cse_name,
             "localPort": local_port,
             "cseID": cse_id,
@@ -174,3 +200,80 @@ def api_gateway_data(request):
         out["cmd_cse_response"] = (cse_cmd or "")[:500]
 
     return JsonResponse(out)
+
+
+@require_http_methods(["GET", "POST"])
+@csrf_exempt
+def api_wireguard_peers(request):
+    if request.method == "GET":
+        return JsonResponse({"success": True, "peers": list_peers()})
+
+    try:
+        body = json.loads(request.body) if request.body else {}
+    except json.JSONDecodeError:
+        return JsonResponse({"success": False, "message": "Invalid JSON body"}, status=400)
+
+    peer_name = (body.get("peerName") or "").strip()
+    public_key = (body.get("publicKey") or "").strip()
+    metadata = body.get("metadata") or {}
+
+    if not peer_name or not public_key:
+        return JsonResponse(
+            {"success": False, "message": "peerName and publicKey are required"},
+            status=400,
+        )
+
+    peer_record = save_peer(peer_name, public_key, metadata)
+    return JsonResponse({"success": True, "peer": peer_record})
+
+
+@require_http_methods(["GET", "POST"])
+@csrf_exempt
+def api_wireguard_server_config(request):
+    if request.method == "POST":
+        config_text = write_server_config()
+    else:
+        config_text = get_server_config()["config_text"]
+
+    config_info = get_server_config()
+    return JsonResponse(
+        {
+            "success": True,
+            "config": config_text,
+            "path": config_info["path"],
+        }
+    )
+
+
+@require_http_methods(["GET", "POST"])
+@csrf_exempt
+def api_wireguard_server_settings(request):
+    if request.method == "GET":
+        return JsonResponse({"success": True, "settings": get_server_settings()})
+
+    try:
+        body = json.loads(request.body) if request.body else {}
+    except json.JSONDecodeError:
+        return JsonResponse({"success": False, "message": "Invalid JSON body"}, status=400)
+
+    settings = save_server_settings(body)
+    return JsonResponse({"success": True, "settings": settings})
+
+
+@require_http_methods(["GET", "POST"])
+@csrf_exempt
+def api_wireguard_server_full_config(request):
+    if request.method == "POST":
+        config_text = write_full_server_config()
+    else:
+        config_text = get_full_server_config()["config_text"]
+
+    config_info = get_full_server_config()
+    return JsonResponse(
+        {
+            "success": True,
+            "config": config_text,
+            "path": config_info["path"],
+            "settings": get_server_settings(),
+        }
+    )
