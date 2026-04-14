@@ -24,6 +24,7 @@ _topology_lock = threading.RLock()
 _topology_state = {
     "version": 0,
     "updated_at": None,
+    "hosts": [],
     "cses": [],
     "aes": [],
 }
@@ -103,6 +104,7 @@ def upsert_cse_topology(name: str = "", cse_id: str = "", port: str = "", deploy
             "cseID": final_cse_id,
             "port": final_port,
             "deployType": deploy_type or "Deploy CSE",
+            "hostNodeId": _latest_host_node_id_locked(),  # <-- add this
             "source": source,
             "updatedAt": _utc_now_iso(),
         }
@@ -469,6 +471,7 @@ def initialize_provision_host(name: str) -> bool:
         if created:
             print("node created Successfully")
             provisioned_host_name = node_rn   # store for other functions to use
+            upsert_host_topology(node_rn) 
             node_path = cse_url + '/' + node_rn
             flex_node_created = create_flex_container(originator_gateway_control, node_path, "resources")
             if flex_node_created:
@@ -494,4 +497,25 @@ def initialize_provision_host(name: str) -> bool:
     except Exception as e:
         print("major error in creating node / flexnode", e)
         return False
+
+def upsert_host_topology(name: str) -> dict:
+    with _topology_lock:
+        node_id = f"host-{_slugify(name)}"
+        for index, existing in enumerate(_topology_state["hosts"]):
+            if existing["nodeId"] == node_id:
+                _touch_topology()
+                return copy.deepcopy(existing)
+        record = {
+            "nodeId": node_id,
+            "name": name,
+            "updatedAt": _utc_now_iso(),
+        }
+        _topology_state["hosts"].append(record)
+        _touch_topology()
+        return copy.deepcopy(record)
+
+def _latest_host_node_id_locked():
+    if not _topology_state["hosts"]:
+        return None
+    return _topology_state["hosts"][-1]["nodeId"]
 

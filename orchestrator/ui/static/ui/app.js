@@ -25,6 +25,7 @@
     topology: {
       version: 0,
       updated_at: null,
+      hosts: [],  
       cses: [],
       aes: [],
     },
@@ -39,6 +40,7 @@
     return {
       version: typeof safe.version === "number" ? safe.version : 0,
       updated_at: safe.updated_at || null,
+      hosts: Array.isArray(safe.hosts) ? safe.hosts : [],
       cses: Array.isArray(safe.cses) ? safe.cses : [],
       aes: Array.isArray(safe.aes) ? safe.aes : [],
     };
@@ -57,10 +59,15 @@
   }
 
   function updateMeta() {
+    const hostCount = state.topology.hosts.length;
     const cseCount = state.topology.cses.length;
-    const aeCount = state.topology.aes.filter(ae => ae.name !== 'CAdmin').length;
+    const aeCount = state.topology.aes.filter(
+      ae => ae.name !== 'CAdmin' && ae.name !== 'orchestrator'
+    ).length;
+  
     if (topoMetaEl) {
       topoMetaEl.textContent =
+        `${hostCount} Host${hostCount === 1 ? "" : "s"} • ` +
         `${cseCount} MN-CSE${cseCount === 1 ? "" : "s"} • ` +
         `${aeCount} AE${aeCount === 1 ? "" : "s"}`;
     }
@@ -172,11 +179,16 @@
             "width": 3,
           },
         },
+        {
+          selector: 'node[type = "host"]',
+          style: { "background-color": "#f0b429" },
+        },
+        
       ],
       layout: {
         name: "breadthfirst",
         directed: true,
-        roots: ["in-cse"],
+        roots: ["in-cse", ...state.topology.hosts.map(h => h.nodeId)],
         padding: 40,
         spacingFactor: 1.25,
         animate: false,
@@ -203,12 +215,36 @@
         },
       },
     ];
-
+  
+    // Host nodes + IN-CSE -> Host edges
+    state.topology.hosts.forEach((host) => {
+      elements.push({
+        data: {
+          id: host.nodeId,
+          label: host.name,
+          type: "host",
+          resourceName: host.name,
+          statusText: `Host: ${host.name}`,
+        },
+      });
+  
+      // IN-CSE -> Host
+      elements.push({
+        data: {
+          id: `incse-host-${host.nodeId}`,
+          source: "in-cse",
+          target: host.nodeId,
+          type: "registration",
+        },
+      });
+    });
+  
+    // CSE nodes + edges
     state.topology.cses.forEach((cse) => {
       const labelParts = [cse.name || "MN-CSE"];
       if (cse.cseID) labelParts.push(`ID: ${cse.cseID}`);
       if (cse.port) labelParts.push(`Port: ${cse.port}`);
-
+  
       elements.push({
         data: {
           id: cse.nodeId,
@@ -221,7 +257,8 @@
             `${cse.port ? ` on port ${cse.port}` : ""}`,
         },
       });
-
+  
+      // IN-CSE -> MN-CSE
       elements.push({
         data: {
           id: `reg-${cse.nodeId}`,
@@ -230,11 +267,23 @@
           type: "registration",
         },
       });
+  
+      // Host -> MN-CSE
+      if (cse.hostNodeId) {
+        elements.push({
+          data: {
+            id: `host-link-${cse.nodeId}`,
+            source: cse.hostNodeId,
+            target: cse.nodeId,
+            type: "registration",
+          },
+        });
+      }
     });
-
+  
+    // AE nodes
     state.topology.aes.forEach((ae) => {
       if (ae.name === "CAdmin") return;
-
       elements.push({
         data: {
           id: ae.nodeId,
@@ -244,7 +293,6 @@
           statusText: `AE: ${ae.name || "AE"}`,
         },
       });
-
       elements.push({
         data: {
           id: `edge-${ae.parentNodeId}-${ae.nodeId}`,
@@ -254,7 +302,7 @@
         },
       });
     });
-
+  
     return elements;
   }
 
@@ -266,7 +314,7 @@
     cy.layout({
       name: "breadthfirst",
       directed: true,
-      roots: ["in-cse"],
+      roots: ["in-cse", ...state.topology.hosts.map(h => h.nodeId)],
       padding: 40,
       spacingFactor: 1.25,
       animate: false,
