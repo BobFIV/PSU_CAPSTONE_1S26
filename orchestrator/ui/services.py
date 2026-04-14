@@ -2,6 +2,8 @@ import atexit
 import copy
 import threading
 from datetime import datetime, timezone
+import signal
+import sys
 
 from .setup import *
 from .ae import register_AE, unregister_AE
@@ -246,12 +248,6 @@ def subscribe_to_cse_base():
 
 
 def initialize_AE_only(application_name):
-    """
-    Startup logic:
-    - register orchestrator AE
-    - start notification receiver
-    - subscribe to IN-CSE base for gatewayAgent AE-create notifications
-    """
     global registration_status
     global final_registration_status
     try:
@@ -259,12 +255,17 @@ def initialize_AE_only(application_name):
             registration_status = f"AE registration failed for '{application_name}'"
             return False
 
-        atexit.register(lambda: unregister_AE(application_name, originator_ae_create))
         registration_status = f"AE '{application_name}' registered successfully"
         print(registration_status)
         final_registration_status = "Orchestrator AE successfully created"
 
         subscribe_to_cse_base()
+
+        # Register cleanup for all exit scenarios
+        atexit.register(_cleanup_on_exit)
+        signal.signal(signal.SIGTERM, _signal_handler)
+        signal.signal(signal.SIGINT, _signal_handler)
+
         return True
 
     except Exception as e:
@@ -518,4 +519,69 @@ def _latest_host_node_id_locked():
     if not _topology_state["hosts"]:
         return None
     return _topology_state["hosts"][-1]["nodeId"]
+
+def delete_subscription(originator: str, path: str) -> bool:
+    import requests as _requests
+    headers = {
+        'X-M2M-Origin': originator,
+        'X-M2M-RI': randomID(),
+        'X-M2M-RVI': '4',
+    }
+    try:
+        r = _requests.delete(path, headers=headers, timeout=5)
+        if r.status_code == 200:
+            print('Subscription deleted successfully')
+            return True
+        print(f'Error deleting subscription: {r.status_code}')
+        return False
+    except Exception as e:
+        print(f'Error deleting subscription: {e}')
+        return False
+
+
+def delete_node(originator: str, path: str) -> bool:
+    import requests as _requests
+    headers = {
+        'X-M2M-Origin': originator,
+        'X-M2M-RI': randomID(),
+        'X-M2M-RVI': '4',
+    }
+    try:
+        r = _requests.delete(path, headers=headers, timeout=5)
+        if r.status_code == 200:
+            print('Node deleted successfully')
+            return True
+        print(f'Error deleting node: {r.status_code}')
+        return False
+    except Exception as e:
+        print(f'Error deleting node: {e}')
+        return False
+
+def _cleanup_on_exit():
+    """Remove all oneM2M resources created by the orchestrator."""
+    print("Orchestrator shutting down — cleaning up oneM2M resources...")
+    
+    # Delete subscription
+    delete_subscription(
+        originator_gateway_control,
+        cse_url + '/orchestratorSubToCSEBase'
+    )
+
+    # Delete provisioned node if one exists
+    if provisioned_host_name:
+        delete_node(
+            originator_gateway_control,
+            cse_url + '/' + provisioned_host_name
+        )
+
+    # Unregister orchestrator AE
+    unregister_AE(application_name, originator_ae_create)
+
+    stop_notification_receiver()
+    print("Cleanup complete.")
+
+
+def _signal_handler(sig, frame):
+    _cleanup_on_exit()
+    sys.exit(0)
 
