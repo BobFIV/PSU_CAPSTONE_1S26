@@ -471,7 +471,18 @@ def initialize_provision_host(name: str) -> bool:
             flex_node_created = create_flex_container(originator_gateway_control, node_path, "resources")
             if flex_node_created:
                 print("Node / Flexnode created")
-                return True
+                gateway_container_path = node_path + "/" + "resources"
+                cmd_container_created = create_container(originator_gateway_control,gateway_container_path,"gateway_cmd")
+                data_container_created = create_container(originator_gateway_control,gateway_cmd_path,"gateway_data")
+                if cmd_container_created and data_container_created:
+                    print("node struture created successfully")
+                    return True
+                elif not cmd_container_created:
+                    print("failed to create cmd containter")
+                    return False
+                else:
+                    print("failed to create data container")
+                    return False
             else:
                 print("flex container not created")
                 return False
