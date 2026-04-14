@@ -438,6 +438,7 @@ def query_node_properties(node_type: str, name: str) -> dict:
             'rr':   'Request Reachability',
             'nl':   'Node Link',
             'lbl':  'Labels',
+            'et': 'Expiry Time',
         }
 
         props = {}

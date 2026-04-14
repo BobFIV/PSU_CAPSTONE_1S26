@@ -19,7 +19,7 @@
   let topologyPollTimer = null;
 
   const state = {
-    host: { ip: "", port: "", extra: "", deployedAction: null },
+    host: { name: "", deployedAction: null },
     cse: { name: "", port: "", cseID: "", dockerName: "", extra: "", deployedAction: null },
     ae: { name: "", extra: "", deployedAction: null },
     topology: {
@@ -95,7 +95,8 @@
 
       const props = data.properties || {};
       const rows = Object.entries(props).map(([k, v]) => {
-        const val = Array.isArray(v) ? v.join(", ") : String(v);
+        let val = Array.isArray(v) ? v.join(", ") : String(v);
+        if (TIME_FIELDS.has(k)) val = formatOneM2MTime(val);
         return `<tr><td class="wfInfoKey">${k}</td><td class="wfInfoVal">${val}</td></tr>`;
       }).join("");
 
@@ -379,22 +380,13 @@
       headers: { "Content-Type": "application/json" },
     });
   }
-
   function bindHost(root) {
-    const ip = root.querySelector('input[name="host_ip"]');
-    const port = root.querySelector('input[name="host_port"]');
-    const extra = root.querySelector('input[name="host_extra"]');
-
-    ip.value = state.host.ip;
-    port.value = state.host.port;
-    extra.value = state.host.extra;
-
-    ip.addEventListener("input", () => (state.host.ip = ip.value));
-    port.addEventListener("input", () => (state.host.port = port.value));
-    extra.addEventListener("input", () => (state.host.extra = extra.value));
-
+    const name = root.querySelector('input[name="host_name"]');
+    name.value = state.host.name || "";
+    name.addEventListener("input", () => (state.host.name = name.value));
+  
     if (state.host.deployedAction) markSelected(root, state.host.deployedAction);
-
+  
     root.querySelectorAll(".wfAction").forEach((btn) => {
       btn.addEventListener("click", async () => {
         state.host.deployedAction = btn.dataset.action;
@@ -402,7 +394,7 @@
         if (btn.dataset.action === "deploy_local") {
           try {
             const data = await provision_host();
-
+  
             if (data.success) {
               enableBackToTopology("Host deployed locally");
             } else {
@@ -586,3 +578,14 @@
   syncTopologyFromBackend(true);
   startTopologyPolling();
 })();
+
+function formatOneM2MTime(val) {
+  // Format: 20260414T162152,856667 -> Apr 14, 2026, 16:21:52
+  const s = String(val).replace(',', '.');
+  const m = s.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/);
+  if (!m) return val;
+  const dt = new Date(`${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}`);
+  return isNaN(dt) ? val : dt.toLocaleString();
+}
+
+const TIME_FIELDS = new Set(['Created At', 'Last Modified', 'et']);
