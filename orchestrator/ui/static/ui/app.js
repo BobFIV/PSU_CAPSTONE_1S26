@@ -378,6 +378,7 @@
     return await fetchJson("/api/provision/host/", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: state.host.name || "" }),
     });
   }
   function bindHost(root) {

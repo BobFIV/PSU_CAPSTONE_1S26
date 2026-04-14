@@ -179,11 +179,13 @@ def api_gateway_data(request):
 @csrf_exempt
 def api_provision_host(request):
     try:
-        success = services.initialize_provision_host()
+        body = json.loads(request.body) if request.body else {}
+        name = body.get("name", "")
+        success = services.initialize_provision_host(name)
         if success:
-            return JsonResponse({"success": True})
+            return JsonResponse({"success": True, "name": name})
         else:
             return JsonResponse({"success": False})
     except Exception as e:
-        print(e)                                #will be changed to logger
+        print(e)
         return JsonResponse({"success": False})

@@ -14,6 +14,8 @@ from .node_flexnode_for_provision_host import create_node, create_flex_container
 
 registration_status = "Not connected to IN-CSE"
 final_registration_status = "Not Connected to IN-CSE"
+provisioned_host_name = None
+
 
 # -----------------------------
 # In-memory topology state
@@ -457,23 +459,26 @@ def query_node_properties(node_type: str, name: str) -> dict:
     except Exception as e:
         return {"success": False, "message": f"Error: {e}"}
     
-def initialize_provision_host() -> bool:
+def initialize_provision_host(name: str) -> bool:
+    global provisioned_host_name
     try:
-        created = create_node(originator_gateway_control,cse_url,"gw-node-01")
+        node_rn = name.strip() if name and name.strip() else "gw-node-01"
+        created = create_node(originator_gateway_control, cse_url, node_rn)
         if created:
-            print("node created Successfully") #will be changed to logger statement
-            node_path = cse_url + '/' + "gw-node-01"
-            flex_node_created = create_flex_container(originator_gateway_control,node_path,"resources")
+            print("node created Successfully")
+            provisioned_host_name = node_rn   # store for other functions to use
+            node_path = cse_url + '/' + node_rn
+            flex_node_created = create_flex_container(originator_gateway_control, node_path, "resources")
             if flex_node_created:
-                print("Node / Flexnode created") #will be changed to logger statement
+                print("Node / Flexnode created")
                 return True
             else:
-                print("flex container not created") #will be changed to logger statement
+                print("flex container not created")
                 return False
         else:
-            print ("error in creating Node / flexnode") #will be changed to logger statement
+            print("error in creating Node / flexnode")
             return False
     except Exception as e:
-        print("major error in creating node / flexnode") #will be changed to logger statement
+        print("major error in creating node / flexnode", e)
         return False
 
