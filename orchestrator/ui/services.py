@@ -271,13 +271,15 @@ def initialize_AE_only(application_name):
 
 
 def send_command_to_gateway(content: str) -> tuple:
-    """Create contentInstance in gatewayAgent/cmd."""
-    return create_contentInstance_with_response(originator_gateway_control, gateway_cmd_path, content)
+    """Create contentInstance in the provisioned host's gateway_cmd container."""
+    path = cse_url + '/' + (provisioned_host_name or '') + '/resources/gateway_cmd'
+    return create_contentInstance_with_response(originator_gateway_control, path, content)
 
 
 def send_data_to_gateway(content: str) -> tuple:
-    """Create contentInstance in gatewayAgent/data."""
-    return create_contentInstance_with_response(originator_gateway_control, gateway_data_path, content)
+    """Create contentInstance in the provisioned host's gateway_data container."""
+    path = cse_url + '/' + (provisioned_host_name or '') + '/resources/gateway_data'
+    return create_contentInstance_with_response(originator_gateway_control, path, content)
 
 def discover_resources_from_cse() -> dict:
     """
