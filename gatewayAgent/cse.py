@@ -95,7 +95,7 @@ def start_CSE(id: str, name: str, loport: str, port: str, url, update, timeout: 
     print(f"[start_CSE] entered name={name} loport={loport} port={port}", flush=True)
     try:
         if exists_CSE(name):
-            if update:
+            if bool(update):
                 remove_CSE(name)
                 create_CSE(name, loport, port, network_name=network_name)
             # old_port = check_port_mapping(name)
