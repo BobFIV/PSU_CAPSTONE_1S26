@@ -330,7 +330,7 @@ def discover_resources_from_cse() -> dict:
                 r2 = _requests.get(f'http://localhost:8080/{uri}', headers=h2, timeout=5)
                 if r2.status_code == 200:
                     csr = r2.json().get('m2m:csr', {})
-                    cse_name = csr.get('csn', csr.get('rn', ''))
+                    cse_name = csr.get('rn', csr.get('csn', ''))
                     cse_id   = csr.get('csi', '')
                     # Try to extract port from pointOfAccess (poa)
                     poa_list = csr.get('poa', [])
@@ -414,12 +414,22 @@ def query_node_properties(node_type: str, name: str) -> dict:
     try:
         if node_type == 'in':
             url = cse_url
-        elif node_type in ('mn', 'ae'):
+        elif node_type == 'host':
             if not name:
                 return {"success": False, "message": "Resource name required"}
             url = f"{cse_url}/{name}"
+        elif node_type == 'ae':
+            if not name:
+                return {"success": False, "message": "Resource name required"}
+            url = f"{cse_url}/{name}"
+        elif node_type == 'mn':
+            if not name:
+                return {"success": False, "message": "Resource name required"}
+            clean_name = name.lstrip('/')
+            url = f"{cse_url}/{clean_name}"
         else:
             return {"success": False, "message": f"Unknown node type: {node_type}"}
+
 
         r = _requests.get(url, headers=headers, timeout=5)
 
@@ -434,7 +444,7 @@ def query_node_properties(node_type: str, name: str) -> dict:
 
         # Extract the inner resource object regardless of wrapper key
         resource = None
-        for key in ('m2m:cb', 'm2m:ae', 'm2m:csr'):
+        for key in ('m2m:cb', 'm2m:ae', 'm2m:csr', 'm2m:nod'):
             if key in data:
                 resource = data[key]
                 resource_type = key

@@ -111,6 +111,7 @@
         "m2m:cb":  "CSE Base",
         "m2m:ae":  "Application Entity",
         "m2m:csr": "Remote CSE",
+        "m2m:nod": "Node",
       }[data.resourceType] || data.resourceType || "";
 
       showInfoPanel(
@@ -188,7 +189,7 @@
       layout: {
         name: "breadthfirst",
         directed: true,
-        roots: ["in-cse", ...state.topology.hosts.map(h => h.nodeId)],
+        roots: ["in-cse"],
         padding: 40,
         spacingFactor: 1.25,
         animate: false,
@@ -198,6 +199,7 @@
 
     cy.on("tap", "node", (event) => {
       const data = event.target.data();
+      console.log("Node clicked:", data);
       setStatus(data.statusText || data.label);
       fetchNodeInfo(data.type, data.resourceName);
     });
@@ -250,7 +252,7 @@
           id: cse.nodeId,
           label: labelParts.join("\n"),
           type: "mn",
-          resourceName: cse.name || "",
+          resourceName: cse.name || (cse.cseID || "").replace(/^\//, ""),
           statusText:
             `${cse.name || "MN-CSE"}` +
             `${cse.cseID ? ` (${cse.cseID})` : ""}` +
@@ -258,15 +260,7 @@
         },
       });
   
-      // IN-CSE -> MN-CSE
-      elements.push({
-        data: {
-          id: `reg-${cse.nodeId}`,
-          source: "in-cse",
-          target: cse.nodeId,
-          type: "registration",
-        },
-      });
+      
   
       // Host -> MN-CSE
       if (cse.hostNodeId) {
@@ -314,7 +308,7 @@
     cy.layout({
       name: "breadthfirst",
       directed: true,
-      roots: ["in-cse", ...state.topology.hosts.map(h => h.nodeId)],
+      roots: ["in-cse"],
       padding: 40,
       spacingFactor: 1.25,
       animate: false,
