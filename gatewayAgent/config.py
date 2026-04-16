@@ -17,6 +17,7 @@ class GatewayConfig:
     acme_image:str
     host_cse_base_dir:str
     cnt_cse_base_dir:str
+    docker_host:str
     log_level: str = "INFO"
     
 
@@ -40,7 +41,9 @@ class GatewayConfig:
             acme_image=os.environ["ACME_IMAGE"],
             host_cse_base_dir=os.environ["HOST_CSE_BASE_DIR"],
             cnt_cse_base_dir=os.environ["CONTAINER_CSE_BASE_DIR"],
+            docker_host=os.environ["DOCKER_HOST"],
             log_level=os.getenv("LOG_LEVEL", "INFO"),
+            
             
 
             tls_enabled=as_bool(os.getenv("TLS_ENABLED"), False),
@@ -73,6 +76,8 @@ class GatewayConfig:
             raise ValueError("HOST_CSE_BASE_DIR is required")
         if not self.cnt_cse_base_dir:
             raise ValueError("CNT_CSE_BASE_DIR is required")
+        if not self.docker_host:
+            raise ValueError("DOCKER_HOST is required")
 
         if self.tls_enabled:
             if self.tls_verify and self.tls_ca_cert is None:

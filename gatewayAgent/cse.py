@@ -70,6 +70,10 @@ def remove_CSE(name: str) -> None:
         pass
 
 def create_CSE(name: str, loport: str, port: str, network_name: str | None = None) -> bool:
+    try:
+        client.images.get(acme_image)
+    except docker.errors.ImageNotFound:
+        client.images.pull(acme_image)
     kwargs = {
         "image": acme_image,
         "name": name,
@@ -87,21 +91,28 @@ def create_CSE(name: str, loport: str, port: str, network_name: str | None = Non
     client.containers.run(**kwargs)
     return True
 
-def start_CSE(id: str, name: str, loport: str, port: str, url, timeout: float = 12, network_name: str | None = None) -> bool:
+def start_CSE(id: str, name: str, loport: str, port: str, url, update, timeout: float = 12, network_name: str | None = None) -> bool:
     print(f"[start_CSE] entered name={name} loport={loport} port={port}", flush=True)
     try:
         if exists_CSE(name):
-            old_port = check_port_mapping(name)
-
-            if old_port is None:
-                print(f"CSE {name} exists but port mapping could not be read")
-                return False
-
-            if loport != old_port:
+            if update:
                 remove_CSE(name)
                 create_CSE(name, loport, port, network_name=network_name)
+            # old_port = check_port_mapping(name)
 
-            elif not is_running_CSE(name):
+            # if old_port is None:
+            #     print(f"CSE {name} exists but port mapping could not be read")
+            #     return False
+
+            # #let orchestrator not create same name docker twice. either delete and create or if update, do safety check. (no same name, id exists)
+            # #when user input-> orchestrator check if same name docker exists.-> if yes, check if all fields are the same
+            # # if not, update it with safetycheck
+            # # so anything sent here is safe. & add update: t/f field-> if updated, need to remove and create cse. if not, just restart
+            # if loport != old_port: #not exactly match
+            #     remove_CSE(name)
+            #     create_CSE(name, loport, port, network_name=network_name)
+
+            elif not is_running_CSE(name): #name, port match
                 c = client.containers.get(name)
                 c.start()
 
@@ -321,7 +332,7 @@ def update_config(data):
             cfg.write(f)
     
     print(f"Configuration updated successfully")
-    return d['cseID'],d['cseName'], d['localPort'], d['dockerName']
+    return d['cseID'],d['cseName'], d['localPort'], d['dockerName'], d['update']
 
 
 # def set_nummn():

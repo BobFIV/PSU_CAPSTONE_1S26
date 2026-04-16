@@ -19,6 +19,7 @@ import atexit
 from cse import start_CSE, update_config, read_config
 
 from processData import process_cin, parse_cin
+import time
 
 # import logging
 # import requests
@@ -30,13 +31,21 @@ run_notification_receiver()
 # set_nummn()
 # set_localports()
 # print(localports)
-
+# retry AE registration a few times
+for i in range(20):
+    try:
+        if register_AE(originator, application_name, cse_url) == False:
+            stop_notification_receiver()
+            exit()
+        break
+    except Exception:
+        time.sleep(2)
 
 # Register gatewayAgent AE and create cmd/data only under gatewayAgent (orchestrator does not create these)
 # Register an AE
-if register_AE(originator, application_name, cse_url) == False:
-    stop_notification_receiver()
-    exit()
+# if register_AE(originator, application_name, cse_url) == False:
+#     stop_notification_receiver()
+#     exit()
 
 # Create a <container> resource
 if create_container(originator, application_path, 'cmd')==False:
@@ -77,11 +86,11 @@ while True: #stop when no notification, don't keep retrieving
                     cin_data=retrieve_contentinstance(originator, application_path+'/data/la') #only la needed for data
                     # print(cin_data)
                     if 'cseName' in cin_data['con']: #condition
-                        mn_id, mn_name, mn_loport, docker_name=update_config(cin_data['con'])
+                        mn_id, mn_name, mn_loport, docker_name, update=update_config(cin_data['con'])
                         mn_port=read_config(f'{docker_name}/acme.ini', 'httpPort')
                         # mn_url=f'http://localhost:{mn_loport}/~/{mn_id}/{mn_name}' #mn_loport(pi port):cseport
                         mn_url=f'http://host.docker.internal:{mn_loport}/~/{mn_id}/{mn_name}' #change to pi url
-                        if start_CSE(mn_id, docker_name, mn_loport, mn_port, mn_url): #container name==cse name-> don't give name
+                        if start_CSE(mn_id, docker_name, mn_loport, mn_port, mn_url, update): #container name==cse name-> don't give name
                             register_AE('CgatewayAgentMN', 'gatewayAgentMN', mn_url)
                 except KeyError:
                     print("CIN does not exist in data")
@@ -104,14 +113,14 @@ while True: #stop when no notification, don't keep retrieving
 
 # Content in gatewayAgent/cmd and gatewayAgent/data (orchestrator pushes via API; optional initial values here)
 # register_AE('Corchestrator', 'orchestrator', cse_url)
-# create_contentInstance(originator, application_path+'/cmd', 'execute')
-# create_contentInstance(originator, application_path+'/data', 'cseName=cse-mn1\ncseID=id-mn1\nlocalPort=8081\n')
+# create_contentInstance('CgatewayAgent', 'http://localhost:8080/~/id-in/cse-in/gatewayAgent/cmd', 'execute')
+# create_contentInstance('CgatewayAgent', 'http://localhost:8080/~/id-in/cse-in/gatewayAgent/data', 'dockerName=acme-mn1\ncseName=cse-mn1\ncseID=id-mn1\nlocalPort=8081\n')
 
 
 
 
 # Retrieve the <container> resource
-        # cin=retrieve_contentinstance(originator, application_path+'/cmd/la')
+        # cin=retrieve_contentinstance(originator, 'http://host.docker.internal:8080/~/id-in/cse-in/gatewayAgent/cmd/la')
         
         
 # register_AE('CgatewayAgentMN', 'gatewayAgentMN', f'http://localhost:8081/~/id-mn1/cse-mn1')
