@@ -20,7 +20,7 @@
 
   const state = {
     host: { name: "", deployedAction: null },
-    cse: { name: "", port: "", cseID: "", dockerName: "", extra: "", deployedAction: null },
+    cse: { name: "", port: "", cseID: "", dockerName: "", hostName: "", extra: "", deployedAction: null },
     ae: { name: "", extra: "", deployedAction: null },
     topology: {
       version: 0,
@@ -482,6 +482,7 @@
     const cseId = root.querySelector('input[name="cse_id"]');
     const port = root.querySelector('input[name="cse_port"]');
     const dockerName = root.querySelector('input[name="cse_docker_name"]');
+    const hostSelect = root.querySelector('select[name="cse_host"]');
     const extra = root.querySelector('input[name="cse_extra"]');
 
     name.value = state.cse.name;
@@ -490,10 +491,21 @@
     dockerName.value = state.cse.dockerName;
     extra.value = state.cse.extra;
 
+    state.topology.hosts.forEach((host) => {
+      const option = document.createElement("option");
+      option.value = host.name;
+      option.textContent = host.name;
+      hostSelect.appendChild(option);
+    });
+    
+    // Restore previously selected value
+    if (state.cse.hostName) hostSelect.value = state.cse.hostName;
+
     name.addEventListener("input", () => (state.cse.name = name.value));
     cseId.addEventListener("input", () => (state.cse.cseID = cseId.value));
     port.addEventListener("input", () => (state.cse.port = port.value));
     dockerName.addEventListener("input", () => (state.cse.dockerName = dockerName.value));
+    hostSelect.addEventListener("change", () => (state.cse.hostName = hostSelect.value));
     extra.addEventListener("input", () => (state.cse.extra = extra.value));
 
     if (state.cse.deployedAction) markSelected(root, state.cse.deployedAction);
@@ -508,6 +520,7 @@
           localPort: (state.cse.port || "").trim(),
           cseID: (state.cse.cseID || "").trim(),
           dockerName: (state.cse.dockerName || "").trim(),
+          hostName: (state.cse.hostName || "").trim(),
           deployType: btn.textContent.trim(),
         };
 
@@ -539,6 +552,7 @@
         enableBackToTopology(`CSE step saved (${btn.textContent.trim()})`);
       });
     });
+
   }
 
   function bindAE(root) {

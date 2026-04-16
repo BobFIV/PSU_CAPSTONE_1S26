@@ -16,7 +16,7 @@ from .node_flexnode_for_provision_host import create_node, create_flex_container
 
 registration_status = "Not connected to IN-CSE"
 final_registration_status = "Not Connected to IN-CSE"
-provisioned_host_name = None
+provisioned_host_names = []
 
 
 # -----------------------------
@@ -93,12 +93,18 @@ def make_cse_node_id(name: str = "", cse_id: str = "", port: str = "") -> str:
     return f"mn-{_slugify(base)}"
 
 
-def upsert_cse_topology(name: str = "", cse_id: str = "", port: str = "", deploy_type: str = "Deploy CSE", source: str = "api"):
+def upsert_cse_topology(name: str = "", cse_id: str = "", port: str = "", deploy_type: str = "Deploy CSE", source: str = "api", host_name: str = ""):
     with _topology_lock:
         final_name = (name or "").strip() or _next_default_name("mn-cse", _topology_state["cses"])
         final_cse_id = (cse_id or "").strip()
         final_port = (port or "").strip()
         node_id = make_cse_node_id(final_name, final_cse_id, final_port)
+
+        # Use explicitly selected host, fall back to latest
+        if host_name and host_name.strip():
+            host_node_id = f"host-{_slugify(host_name.strip())}"
+        else:
+            host_node_id = _latest_host_node_id_locked()
 
         record = {
             "nodeId": node_id,
@@ -106,7 +112,7 @@ def upsert_cse_topology(name: str = "", cse_id: str = "", port: str = "", deploy
             "cseID": final_cse_id,
             "port": final_port,
             "deployType": deploy_type or "Deploy CSE",
-            "hostNodeId": _latest_host_node_id_locked(),  # <-- add this
+            "hostNodeId": host_node_id,
             "source": source,
             "updatedAt": _utc_now_iso(),
         }
@@ -120,6 +126,7 @@ def upsert_cse_topology(name: str = "", cse_id: str = "", port: str = "", deploy
         _topology_state["cses"].append(record)
         _touch_topology()
         return copy.deepcopy(record)
+
 
 
 def add_ae_to_topology(name: str = "", parent_node_id: str = "", parent_cse_id: str = "", deploy_type: str = "Deploy AE", source: str = "api"):
@@ -270,18 +277,27 @@ def initialize_AE_only(application_name):
 
     except Exception as e:
         registration_status = f"Error registering AE: {e}"
-        return False
+        return Falsex
 
 
-def send_command_to_gateway(content: str) -> tuple:
-    """Create contentInstance in the provisioned host's gateway_cmd container."""
-    path = cse_url + '/' + (provisioned_host_name or '') + '/resources/gateway_cmd'
+def send_command_to_gateway(content: str, host_name: str = "") -> tuple:
+    """Create contentInstance in the selected host's gateway_cmd container."""
+    if not provisioned_host_names:
+        return False, 0, "No host provisioned yet. Use Provision Host first."
+    
+    # Use selected host if valid, otherwise fall back to latest
+    target = host_name.strip() if host_name and host_name.strip() in provisioned_host_names else provisioned_host_names[-1]
+    path = cse_url + '/' + target + '/resources/gateway_cmd'
     return create_contentInstance_with_response(originator_gateway_control, path, content)
 
 
-def send_data_to_gateway(content: str) -> tuple:
-    """Create contentInstance in the provisioned host's gateway_data container."""
-    path = cse_url + '/' + (provisioned_host_name or '') + '/resources/gateway_data'
+def send_data_to_gateway(content: str, host_name: str = "") -> tuple:
+    """Create contentInstance in the selected host's gateway_data container."""
+    if not provisioned_host_names:
+        return False, 0, "No host provisioned yet. Use Provision Host first."
+    
+    target = host_name.strip() if host_name and host_name.strip() in provisioned_host_names else provisioned_host_names[-1]
+    path = cse_url + '/' + target + '/resources/gateway_data'
     return create_contentInstance_with_response(originator_gateway_control, path, content)
 
 def discover_resources_from_cse() -> dict:
@@ -465,13 +481,13 @@ def query_node_properties(node_type: str, name: str) -> dict:
         return {"success": False, "message": f"Error: {e}"}
     
 def initialize_provision_host(name: str) -> bool:
-    global provisioned_host_name
+    global provisioned_host_names 
     try:
         node_rn = name.strip() if name and name.strip() else "gw-node-01"
         created = create_node(originator_gateway_control, cse_url, node_rn)
         if created:
             print("node created Successfully")
-            provisioned_host_name = node_rn   # store for other functions to use
+            provisioned_host_names.append(node_rn)   # store for other functions to use
             upsert_host_topology(node_rn) 
             node_path = cse_url + '/' + node_rn
             flex_node_created = create_flex_container(originator_gateway_control, node_path, "resources")
@@ -568,10 +584,10 @@ def _cleanup_on_exit():
     )
 
     # Delete provisioned node if one exists
-    if provisioned_host_name:
+    for host_name in provisioned_host_names:
         delete_node(
             originator_gateway_control,
-            cse_url + '/' + provisioned_host_name
+            cse_url + '/' + host_name
         )
 
     # Unregister orchestrator AE
