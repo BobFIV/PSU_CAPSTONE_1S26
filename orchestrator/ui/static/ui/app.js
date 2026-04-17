@@ -19,12 +19,13 @@
   let topologyPollTimer = null;
 
   const state = {
-    host: { ip: "", port: "", extra: "", deployedAction: null },
-    cse: { name: "", port: "", cseID: "", dockerName: "", extra: "", deployedAction: null },
+    host: { name: "", deployedAction: null },
+    cse: { name: "", port: "", cseID: "", dockerName: "", hostName: "", extra: "", deployedAction: null },
     ae: { name: "", extra: "", deployedAction: null },
     topology: {
       version: 0,
       updated_at: null,
+      hosts: [],  
       cses: [],
       aes: [],
     },
@@ -39,6 +40,7 @@
     return {
       version: typeof safe.version === "number" ? safe.version : 0,
       updated_at: safe.updated_at || null,
+      hosts: Array.isArray(safe.hosts) ? safe.hosts : [],
       cses: Array.isArray(safe.cses) ? safe.cses : [],
       aes: Array.isArray(safe.aes) ? safe.aes : [],
     };
@@ -57,10 +59,15 @@
   }
 
   function updateMeta() {
+    const hostCount = state.topology.hosts.length;
     const cseCount = state.topology.cses.length;
-    const aeCount = state.topology.aes.filter(ae => ae.name !== 'CAdmin').length;
+    const aeCount = state.topology.aes.filter(
+      ae => ae.name !== 'CAdmin' && ae.name !== 'orchestrator'
+    ).length;
+  
     if (topoMetaEl) {
       topoMetaEl.textContent =
+        `${hostCount} Host${hostCount === 1 ? "" : "s"} • ` +
         `${cseCount} MN-CSE${cseCount === 1 ? "" : "s"} • ` +
         `${aeCount} AE${aeCount === 1 ? "" : "s"}`;
     }
@@ -95,7 +102,8 @@
 
       const props = data.properties || {};
       const rows = Object.entries(props).map(([k, v]) => {
-        const val = Array.isArray(v) ? v.join(", ") : String(v);
+        let val = Array.isArray(v) ? v.join(", ") : String(v);
+        if (TIME_FIELDS.has(k)) val = formatOneM2MTime(val);
         return `<tr><td class="wfInfoKey">${k}</td><td class="wfInfoVal">${val}</td></tr>`;
       }).join("");
 
@@ -103,6 +111,7 @@
         "m2m:cb":  "CSE Base",
         "m2m:ae":  "Application Entity",
         "m2m:csr": "Remote CSE",
+        "m2m:nod": "Node",
       }[data.resourceType] || data.resourceType || "";
 
       showInfoPanel(
@@ -171,6 +180,11 @@
             "width": 3,
           },
         },
+        {
+          selector: 'node[type = "host"]',
+          style: { "background-color": "#f0b429" },
+        },
+        
       ],
       layout: {
         name: "breadthfirst",
@@ -185,6 +199,7 @@
 
     cy.on("tap", "node", (event) => {
       const data = event.target.data();
+      console.log("Node clicked:", data);
       setStatus(data.statusText || data.label);
       fetchNodeInfo(data.type, data.resourceName);
     });
@@ -202,38 +217,67 @@
         },
       },
     ];
-
+  
+    // Host nodes + IN-CSE -> Host edges
+    state.topology.hosts.forEach((host) => {
+      elements.push({
+        data: {
+          id: host.nodeId,
+          label: host.name,
+          type: "host",
+          resourceName: host.name,
+          statusText: `Host: ${host.name}`,
+        },
+      });
+  
+      // IN-CSE -> Host
+      elements.push({
+        data: {
+          id: `incse-host-${host.nodeId}`,
+          source: "in-cse",
+          target: host.nodeId,
+          type: "registration",
+        },
+      });
+    });
+  
+    // CSE nodes + edges
     state.topology.cses.forEach((cse) => {
       const labelParts = [cse.name || "MN-CSE"];
       if (cse.cseID) labelParts.push(`ID: ${cse.cseID}`);
       if (cse.port) labelParts.push(`Port: ${cse.port}`);
-
+  
       elements.push({
         data: {
           id: cse.nodeId,
           label: labelParts.join("\n"),
           type: "mn",
-          resourceName: cse.name || "",
+          resourceName: cse.name || (cse.cseID || "").replace(/^\//, ""),
           statusText:
             `${cse.name || "MN-CSE"}` +
             `${cse.cseID ? ` (${cse.cseID})` : ""}` +
             `${cse.port ? ` on port ${cse.port}` : ""}`,
         },
       });
-
-      elements.push({
-        data: {
-          id: `reg-${cse.nodeId}`,
-          source: "in-cse",
-          target: cse.nodeId,
-          type: "registration",
-        },
-      });
+  
+      
+  
+      // Host -> MN-CSE
+      if (cse.hostNodeId) {
+        elements.push({
+          data: {
+            id: `host-link-${cse.nodeId}`,
+            source: cse.hostNodeId,
+            target: cse.nodeId,
+            type: "registration",
+          },
+        });
+      }
     });
-
+  
+    // AE nodes
     state.topology.aes.forEach((ae) => {
       if (ae.name === "CAdmin") return;
-
       elements.push({
         data: {
           id: ae.nodeId,
@@ -243,7 +287,6 @@
           statusText: `AE: ${ae.name || "AE"}`,
         },
       });
-
       elements.push({
         data: {
           id: `edge-${ae.parentNodeId}-${ae.nodeId}`,
@@ -253,7 +296,7 @@
         },
       });
     });
-
+  
     return elements;
   }
 
@@ -373,26 +416,41 @@
       `${parent.cseID ? ` (${parent.cseID})` : ""}`;
   }
 
+  async function provision_host() {
+    return await fetchJson("/api/provision/host/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: state.host.name || "" }),
+    });
+  }
   function bindHost(root) {
-    const ip = root.querySelector('input[name="host_ip"]');
-    const port = root.querySelector('input[name="host_port"]');
-    const extra = root.querySelector('input[name="host_extra"]');
-
-    ip.value = state.host.ip;
-    port.value = state.host.port;
-    extra.value = state.host.extra;
-
-    ip.addEventListener("input", () => (state.host.ip = ip.value));
-    port.addEventListener("input", () => (state.host.port = port.value));
-    extra.addEventListener("input", () => (state.host.extra = extra.value));
-
+    const name = root.querySelector('input[name="host_name"]');
+    name.value = state.host.name || "";
+    name.addEventListener("input", () => (state.host.name = name.value));
+  
     if (state.host.deployedAction) markSelected(root, state.host.deployedAction);
-
+  
     root.querySelectorAll(".wfAction").forEach((btn) => {
-      btn.addEventListener("click", () => {
+      btn.addEventListener("click", async () => {
         state.host.deployedAction = btn.dataset.action;
         markSelected(root, state.host.deployedAction);
-        enableBackToTopology(`Host step saved (${btn.textContent.trim()})`);
+        if (btn.dataset.action === "deploy_local") {
+          try {
+            const data = await provision_host();
+  
+            if (data.success) {
+              enableBackToTopology("Host deployed locally");
+            } else {
+              enableBackToTopology("Deployment failed");
+            }
+          } catch (err) {
+            console.error(err);
+            enableBackToTopology("Error deploying host");
+          }
+        } else {
+          enableBackToTopology(`Host step saved (${btn.textContent.trim()})`);
+        }
+        //enableBackToTopology(`Host step saved (${btn.textContent.trim()})`);
       });
     });
   }
@@ -418,6 +476,7 @@
     const cseId = root.querySelector('input[name="cse_id"]');
     const port = root.querySelector('input[name="cse_port"]');
     const dockerName = root.querySelector('input[name="cse_docker_name"]');
+    const hostSelect = root.querySelector('select[name="cse_host"]');
     const extra = root.querySelector('input[name="cse_extra"]');
 
     name.value = state.cse.name;
@@ -426,10 +485,21 @@
     dockerName.value = state.cse.dockerName;
     extra.value = state.cse.extra;
 
+    state.topology.hosts.forEach((host) => {
+      const option = document.createElement("option");
+      option.value = host.name;
+      option.textContent = host.name;
+      hostSelect.appendChild(option);
+    });
+    
+    // Restore previously selected value
+    if (state.cse.hostName) hostSelect.value = state.cse.hostName;
+
     name.addEventListener("input", () => (state.cse.name = name.value));
     cseId.addEventListener("input", () => (state.cse.cseID = cseId.value));
     port.addEventListener("input", () => (state.cse.port = port.value));
     dockerName.addEventListener("input", () => (state.cse.dockerName = dockerName.value));
+    hostSelect.addEventListener("change", () => (state.cse.hostName = hostSelect.value));
     extra.addEventListener("input", () => (state.cse.extra = extra.value));
 
     if (state.cse.deployedAction) markSelected(root, state.cse.deployedAction);
@@ -444,6 +514,7 @@
           localPort: (state.cse.port || "").trim(),
           cseID: (state.cse.cseID || "").trim(),
           dockerName: (state.cse.dockerName || "").trim(),
+          hostName: (state.cse.hostName || "").trim(),
           deployType: btn.textContent.trim(),
         };
 
@@ -475,6 +546,7 @@
         enableBackToTopology(`CSE step saved (${btn.textContent.trim()})`);
       });
     });
+
   }
 
   function bindAE(root) {
@@ -563,3 +635,14 @@
   syncTopologyFromBackend(true);
   startTopologyPolling();
 })();
+
+function formatOneM2MTime(val) {
+  // Format: 20260414T162152,856667 -> Apr 14, 2026, 16:21:52
+  const s = String(val).replace(',', '.');
+  const m = s.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/);
+  if (!m) return val;
+  const dt = new Date(`${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}`);
+  return isNaN(dt) ? val : dt.toLocaleString();
+}
+
+const TIME_FIELDS = new Set(['Created At', 'Last Modified', 'et']);

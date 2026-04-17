@@ -48,6 +48,10 @@
 
         <div class="wfLegend">
           <div class="wfLegendItem">
+            <span class="wfLegendSwatch wfLegendHost"></span>
+            <span>Host</span>
+          </div>
+          <div class="wfLegendItem">
             <span class="wfLegendSwatch wfLegendIn"></span>
             <span>IN-CSE / Orchestrator</span>
           </div>
@@ -91,16 +95,8 @@
       <div class="wfParamTitle">parameter of the HOST PLATFORM</div>
       <div class="wfLines">
         <div class="wfLine">
-          <span class="wfLineLabel">IP Address :</span>
-          <input class="wfLineInput" name="host_ip" type="text" placeholder="" />
-        </div>
-        <div class="wfLine">
-          <span class="wfLineLabel">Port :</span>
-          <input class="wfLineInput" name="host_port" type="text" placeholder="" />
-        </div>
-        <div class="wfLine">
-          <span class="wfLineLabel">... :</span>
-          <input class="wfLineInput" name="host_extra" type="text" placeholder="" />
+          <span class="wfLineLabel">Name :</span>
+          <input class="wfLineInput" name="host_name" type="text" placeholder="" />
         </div>
       </div>
     </div>
@@ -112,11 +108,6 @@
           <li><button class="wfAction" data-action="deploy_remote" type="button">Deploy Remote Platform *</button></li>
           <li><button class="wfAction" data-action="deploy_vm" type="button">Deploy VM</button></li>
           <li><button class="wfAction" data-action="deploy_cloud" type="button">Deploy Cloud</button></li>
-        </ol>
-      </div>
-      <div class="wfBox wfBoxGreen">
-        <ol class="wfList">
-          <li>perhaps add new item for VPN</li>
         </ol>
       </div>
     </aside>
@@ -144,6 +135,12 @@
         <div class="wfLine">
           <span class="wfLineLabel">Docker Name</span>
           <input class="wfLineInput" name="cse_docker_name" type="text" placeholder="" />
+        </div>
+        <div class="wfLine">
+          <span class="wfLineLabel">Host</span>
+          <select class="wfLineInput" name="cse_host" style="border: none; border-bottom: 3px solid rgba(0,0,0,0.45); background: transparent; font: inherit; font-size: 18px;">
+            <option value="">-- Select a host --</option>
+          </select>
         </div>
         <div class="wfLine">
           <span class="wfLineLabel">... </span>
