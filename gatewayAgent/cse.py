@@ -80,8 +80,8 @@ def create_CSE(name: str, loport: str, port: str, network_name: str | None = Non
         "detach": True,
         "ports": {f"{port}/tcp": int(loport)},
         "environment": {
-            # use host.docker.internal only if the MN-CSE needs to call back to the host
-            "hostIPAddress": "host.docker.internal"
+            # gateway_host_addr resolves to host.docker.internal on laptop, 10.0.0.2 on Pi
+            "hostIPAddress": gateway_host_addr
         },
         "volumes": _volume_spec(name),
     }
@@ -308,6 +308,11 @@ def update_config(data):
                     "consoleTheme = dark\n\n"+
                     "[cse.registration]\n"+
                     "allowedCSROriginators = /id-in,/id-mn*,/id-asn\n\n"+
+                    "[cse.registrar]\n"+
+                    "registrarCSEHost = 10.0.0.1\n"+
+                    "registrarCSEPort = 8080\n"+
+                    "registrarCSEID = /id-in\n"+
+                    "registrarCSEName = cse-in\n\n"+
                     "[textui]\n"+
                     "startWithTUI = false\n\n"+
                     "[cse.operation.requests]\n"+

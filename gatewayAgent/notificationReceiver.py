@@ -11,6 +11,19 @@ class NotificationReceiver(BaseHTTPRequestHandler):
     """ The notification handler class. 
         This class handles the HTTP requests sent by the CSE to the notification receiver.
     """
+    def do_GET(self):
+        if self.path == '/health':
+            body = json.dumps({'status': 'ok'}).encode('utf-8')
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Content-Length', str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+
     def do_POST(self):
         content_length = int(self.headers['Content-Length'])
         request_id = self.headers['X-M2M-RI']

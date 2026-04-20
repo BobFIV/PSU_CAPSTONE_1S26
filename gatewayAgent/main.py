@@ -89,7 +89,7 @@ while True: #stop when no notification, don't keep retrieving
                         mn_id, mn_name, mn_loport, docker_name, update=update_config(cin_data['con'])
                         mn_port=read_config(f'{docker_name}/acme.ini', 'httpPort')
                         # mn_url=f'http://localhost:{mn_loport}/~/{mn_id}/{mn_name}' #mn_loport(pi port):cseport
-                        mn_url=f'http://host.docker.internal:{mn_loport}/~/{mn_id}/{mn_name}' #change to pi url
+                        mn_url=f'http://{gateway_host_addr}:{mn_loport}/~/{mn_id}/{mn_name}' #gateway_host_addr resolves to host.docker.internal on laptop, 10.0.0.2 on Pi
                         if start_CSE(mn_id, docker_name, mn_loport, mn_port, mn_url, update): #container name==cse name-> don't give name
                             register_AE('CgatewayAgentMN', 'gatewayAgentMN', mn_url)
                 except KeyError:
@@ -120,7 +120,7 @@ while True: #stop when no notification, don't keep retrieving
 
 
 # Retrieve the <container> resource
-        # cin=retrieve_contentinstance(originator, 'http://host.docker.internal:8080/~/id-in/cse-in/gatewayAgent/cmd/la')
+        # cin=retrieve_contentinstance(originator, f'http://{gateway_host_addr}:8080/~/id-in/cse-in/gatewayAgent/cmd/la')
         
         
 # register_AE('CgatewayAgentMN', 'gatewayAgentMN', f'http://localhost:8081/~/id-mn1/cse-mn1')

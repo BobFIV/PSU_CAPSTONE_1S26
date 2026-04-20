@@ -18,6 +18,7 @@ class GatewayConfig:
     host_cse_base_dir:str
     cnt_cse_base_dir:str
     docker_host:str
+    gateway_host_addr: str
     log_level: str = "INFO"
     
 
@@ -42,6 +43,7 @@ class GatewayConfig:
             host_cse_base_dir=os.environ["HOST_CSE_BASE_DIR"],
             cnt_cse_base_dir=os.environ["CONTAINER_CSE_BASE_DIR"],
             docker_host=os.environ["DOCKER_HOST"],
+            gateway_host_addr=os.environ["GATEWAY_HOST_ADDR"],
             log_level=os.getenv("LOG_LEVEL", "INFO"),
             
             
@@ -78,6 +80,8 @@ class GatewayConfig:
             raise ValueError("CNT_CSE_BASE_DIR is required")
         if not self.docker_host:
             raise ValueError("DOCKER_HOST is required")
+        if not self.gateway_host_addr:
+            raise ValueError("GATEWAY_HOST_ADDR is required")
 
         if self.tls_enabled:
             if self.tls_verify and self.tls_ca_cert is None:
