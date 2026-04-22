@@ -4,6 +4,8 @@ import threading
 from datetime import datetime, timezone
 import signal
 import sys
+from pathlib import Path
+import shutil
 
 from .setup import *
 from .ae import register_AE, unregister_AE
@@ -498,6 +500,21 @@ def initialize_provision_host(name: str) -> bool:
         if created:
             print("node created Successfully")
             provisioned_host_names.append(node_rn)   # store for other functions to use
+            #for making new directory
+
+            # Base directory = project root (adjust parents[] as needed)
+            BASE_DIR = Path(__file__).resolve().parent.parent.parent
+
+            name = "NodeName_" +node_rn
+            new_dir = BASE_DIR / name
+            new_dir.mkdir(exist_ok=True)
+
+            file_path = new_dir / "config.txt"
+
+            if not file_path.exists():
+                with open(file_path, "w") as f:
+                    f.write(f"node_name={node_rn}\n")
+            
             upsert_host_topology(node_rn) 
             node_path = cse_url + '/' + node_rn
             flex_node_created = create_flex_container(originator_gateway_control, node_path, "resources")
@@ -592,6 +609,22 @@ def _cleanup_on_exit():
         originator_gateway_control,
         cse_url + '/orchestratorSubToCSEBase'
     )
+
+    BASE_DIR = Path(__file__).resolve().parents[2]
+    print("BASE_DIR:", BASE_DIR)
+    
+    for item in BASE_DIR.iterdir():
+        if (
+            item.is_dir()
+            and item.name.startswith("NodeName_")
+            and (item / "config.txt").exists()
+        ):
+            try:
+                shutil.rmtree(item)
+                print(f"Deleted directory: {item}")
+            except Exception as e:
+                print(f"Failed to delete {item}: {e}")
+    
 
     # Delete provisioned node if one exists
     for host_name in provisioned_host_names:
