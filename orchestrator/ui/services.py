@@ -277,7 +277,7 @@ def initialize_AE_only(application_name):
 
     except Exception as e:
         registration_status = f"Error registering AE: {e}"
-        return Falsex
+        return False
 
 
 def send_command_to_gateway(content: str, host_name: str = "") -> tuple:
