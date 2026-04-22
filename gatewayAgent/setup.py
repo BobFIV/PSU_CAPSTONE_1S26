@@ -38,9 +38,15 @@ notificationURIs = [cfg.callback_url]
 host_cse_base=cfg.host_cse_base_dir
 cnt_cse_base=cfg.cnt_cse_base_dir
 docker_host=cfg.docker_host
+docker_net=cfg.docker_net
 
 application_path = cse_url + "/" + application_name
 # parent=os.path.dirname(__file__)
 # grandparent=os.path.dirname(parent)
 notify_q=Queue()
+
+#container(docker) name=directory name =in docker network name
+#id-mn=csr name
+#"cb": "/"+id+"/"+mn_name
+#"csi": "/"+id
 

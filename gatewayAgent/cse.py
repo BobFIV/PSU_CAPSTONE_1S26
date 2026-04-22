@@ -74,6 +74,8 @@ def create_CSE(name: str, loport: str, port: str, network_name: str | None = Non
         client.images.get(acme_image)
     except docker.errors.ImageNotFound:
         client.images.pull(acme_image)
+    
+    advertised_host=name if network_name else "host.docker.internal"
     kwargs = {
         "image": acme_image,
         "name": name,
@@ -81,7 +83,7 @@ def create_CSE(name: str, loport: str, port: str, network_name: str | None = Non
         "ports": {f"{port}/tcp": int(loport)},
         "environment": {
             # use host.docker.internal only if the MN-CSE needs to call back to the host
-            "hostIPAddress": "host.docker.internal"
+            "hostIPAddress": advertised_host
         },
         "volumes": _volume_spec(name),
     }
@@ -91,26 +93,25 @@ def create_CSE(name: str, loport: str, port: str, network_name: str | None = Non
     client.containers.run(**kwargs)
     return True
 
-def start_CSE(id: str, name: str, loport: str, port: str, url, update, timeout: float = 12, network_name: str | None = None) -> bool:
-    print(f"[start_CSE] entered name={name} loport={loport} port={port}", flush=True)
+def start_CSE(id: str, name: str, mn_name:str, loport: str, port: str, url, update, timeout: float = 12, network_name: str | None = None) -> bool:
+    print(f"[start_CSE] entered name={name} loport={loport} port={port}, network={network_name}", flush=True)
     try:
         if exists_CSE(name):
-            if bool(update):
-                remove_CSE(name)
-                create_CSE(name, loport, port, network_name=network_name)
-            # old_port = check_port_mapping(name)
+                
+            old_port = check_port_mapping(name)
 
-            # if old_port is None:
-            #     print(f"CSE {name} exists but port mapping could not be read")
-            #     return False
+            if old_port is None:
+                print(f"CSE {name} exists but port mapping could not be read")
+                return False
 
             # #let orchestrator not create same name docker twice. either delete and create or if update, do safety check. (no same name, id exists)
             # #when user input-> orchestrator check if same name docker exists.-> if yes, check if all fields are the same
             # # if not, update it with safetycheck
             # # so anything sent here is safe. & add update: t/f field-> if updated, need to remove and create cse. if not, just restart
-            # if loport != old_port: #not exactly match
-            #     remove_CSE(name)
-            #     create_CSE(name, loport, port, network_name=network_name)
+            if update or loport != old_port: # not exactly match
+                remove_CSE(name)
+                create_CSE(name, loport, port, network_name=network_name)
+
 
             elif not is_running_CSE(name): #name, port match
                 c = client.containers.get(name)
@@ -122,7 +123,7 @@ def start_CSE(id: str, name: str, loport: str, port: str, url, update, timeout: 
 
         else:
             create_CSE(name, loport, port, network_name=network_name)
-
+       
     except APIError as e:
         print("CSE failed:", str(e))
         return False
@@ -141,6 +142,9 @@ def start_CSE(id: str, name: str, loport: str, port: str, url, update, timeout: 
     while time.time() - t0 < timeout:
         try:
             requests.get(url, headers=headers, timeout=1)
+            # if not create_CSR(id, name, mn_name):
+            #     print("CSE created but CSR registration failed")
+            #     return False
             print("CSE Started successfully")
             return True
         except requests.RequestException:
@@ -292,6 +296,7 @@ def update_config(data):
     dirfilename=f"{d['dockerName']}/acme.ini"
     ini_path=os.path.join(cnt_cse_base, dirfilename)
     p=Path(ini_path)
+    update=False
 
     if not p.exists():
         os.makedirs(os.path.dirname(ini_path), exist_ok=True)
@@ -300,14 +305,24 @@ def update_config(data):
                     "serviceProviderID = //acme.example.com\n"+
                     "adminID = CAdmin\n"+
                     "networkInterface = 0.0.0.0\n"+
-                    "cseHost = ${hostIPAddress}\n"+
+                    f'cseHost = {d["dockerName"]}\n'+ #dockername used as directory name and network host name
                     "httpPort = 8080\n"+
                     "cseSecret = MY_SECRET\n"+""
                     "databaseType = tinydb\n"+
                     "logLevel = debug\n"+
                     "consoleTheme = dark\n\n"+
+                    "[cse.registrar]\n"+
+                    "address = http://acme-in:8080\n"+
+                    "root = /~/id-in\n"
+                    "cseID = /id-in\n"+
+                    "resourceName = cse-in\n"+
+                    "serialization = json\n\n"+
+                    # "registrarCSEHost = acme-in\n"+
+                    # "registrarCSEPort = 8080\n"+
+                    # "registrarCSEID = /id-in\n"+
+                    # "registrarCSEName = cse-in\n\n"+
                     "[cse.registration]\n"+
-                    "allowedCSROriginators = /id-in,/id-mn*,/id-asn\n\n"+
+                    "allowedCSROriginators = /id-in\n\n"+
                     "[textui]\n"+
                     "startWithTUI = false\n\n"+
                     "[cse.operation.requests]\n"+
@@ -315,7 +330,10 @@ def update_config(data):
                     "[http]\n"+
                     "enableUpperTesterEndpoint = true\n"+
                     "enableStructureEndpoint = true\n"+
-                    "enableManagementEndpoint = true")
+                    "enableManagementEndpoint = true\n\n"+
+                    "[logging]\n"+
+                    "enableScreenLogging = true")
+        print(f"Configuration Created")
            
     
     else:
@@ -324,15 +342,19 @@ def update_config(data):
         cfg.read(p)
         for option,name in d.items():
             if cfg.has_option('basic.config', option):
-                cfg['basic.config'][option]=name
+                if cfg['basic.config'][option]!=name:
+                    update=True
+                    cfg['basic.config'][option]=name
             
         #can be more
 
         with p.open("w") as f:
             cfg.write(f)
-    
-    print(f"Configuration updated successfully")
-    return d['cseID'],d['cseName'], d['localPort'], d['dockerName'], d['update']
+    if update:
+        print(f"Configuration updated successfully")
+    else:
+        print(f"Nothing to update")
+    return d['cseID'],d['cseName'], d['localPort'], d['dockerName'], update
 
 
 # def set_nummn():
@@ -359,4 +381,45 @@ def delete_config(dirname):
     ini_path=os.path.join(host_cse_base, dirname)
     p=Path(ini_path)
     shutil.rmtree(p)
+
+def create_CSR (id:str, name:str, mn_name:str)->bool:
+    headers = {
+    "Content-Type": "application/json;ty=16", #or 13
+    "X-M2M-Origin": "/"+id,
+    "X-M2M-RI": randomID(),
+    "X-M2M-RVI": "5",
+    "Accept": "application/json",
+    }
+
+    body={
+        "m2m:csr": {
+            "rn": id,
+            "rr": True,
+            "csi": "/"+id,
+            "cst": 2,
+            "csz": ["application/json", "application/cbor"],
+            "poa": [f"http://{name}:8080"],
+            "srv": ["2a","3","4","5"],
+            "cb": "/"+id+"/"+mn_name,
+            "dcse": []
+        }
+    }
+    response = requests.post(cse_url, headers=headers, json=body)
+
+
+    # Check the response
+    if response.status_code == 201:
+        print('CSR created successfully')
+        return True
+    # if response.status_code == 403:
+    #     try:
+    #         text = (response.text or "")
+    #         if "already registered" in text and originator in text:
+    #             print("AE already exists (originator already registered on CSE)")
+    #             return True
+    #     except Exception:
+    #         pass
+    print('Error creating CSR: ' + str(response.status_code))
+    return False
+    
 

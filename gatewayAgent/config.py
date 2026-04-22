@@ -18,6 +18,7 @@ class GatewayConfig:
     host_cse_base_dir:str
     cnt_cse_base_dir:str
     docker_host:str
+    docker_net: str
     log_level: str = "INFO"
     
 
@@ -42,6 +43,7 @@ class GatewayConfig:
             host_cse_base_dir=os.environ["HOST_CSE_BASE_DIR"],
             cnt_cse_base_dir=os.environ["CONTAINER_CSE_BASE_DIR"],
             docker_host=os.environ["DOCKER_HOST"],
+            docker_net= os.getenv("DOCKER_NET"),
             log_level=os.getenv("LOG_LEVEL", "INFO"),
             
             
@@ -59,7 +61,7 @@ class GatewayConfig:
 
     def validate(self):
         if not self.in_cse_base_url:
-            raise ValueError("MN_CSE_BASE_URL is required")
+            raise ValueError("IN_CSE_BASE_URL is required")
         if not self.originator_id:
             raise ValueError("ORIGINATOR_ID is required")
         if not self.callback_url:
