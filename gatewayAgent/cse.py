@@ -22,7 +22,7 @@ from docker.errors import NotFound, APIError
 def get_cse_dirs(name: str):
     host_dir = Path(os.path.join(host_cse_base,name))
     container_dir = Path(os.path.join(cnt_cse_base, name))
-    container_dir.mkdir(parents=True, exist_ok=True)
+    host_dir.mkdir(parents=True, exist_ok=True) #or cnt_base
     return host_dir, container_dir
 
 def _volume_spec(name: str):
