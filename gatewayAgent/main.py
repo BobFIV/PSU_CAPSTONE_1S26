@@ -16,7 +16,7 @@ from notificationReceiver import run_notification_receiver, stop_notification_re
 
 import atexit
 
-from cse import start_CSE, update_config, read_config
+from cse import start_CSE, update_config, read_config, cleanup
 from node import retrieve_node
 
 from processData import process_cin, parse_cin
@@ -140,8 +140,7 @@ while True: #stop when no notification, don't keep retrieving
 # Unregister the AE and stop the notification server
 # unregister_AE(originator, application_name)
 # stop_notification_receiver()
-
-    atexit.register(lambda:unregister_AE(originator, application_name))
+    atexit.register(lambda:cleanup(docker_name, mn_id, originator+'MN', application_name+'MN'))
     atexit.register(lambda:stop_notification_receiver())
 # atexit.register(lambda:stop_CSE())
 

@@ -5,6 +5,8 @@ from processData import parse_cin, parse_port
 from setup import *
 import time, requests
 import shutil
+from ae import unregister_AE
+
 
 
 
@@ -382,44 +384,58 @@ def delete_config(dirname):
     p=Path(ini_path)
     shutil.rmtree(p)
 
-def create_CSR (id:str, name:str, mn_name:str)->bool:
-    headers = {
-    "Content-Type": "application/json;ty=16", #or 13
-    "X-M2M-Origin": "/"+id,
-    "X-M2M-RI": randomID(),
-    "X-M2M-RVI": "5",
-    "Accept": "application/json",
-    }
+# def create_CSR (id:str, name:str, mn_name:str)->bool:
+#     headers = {
+#     "Content-Type": "application/json;ty=16", #or 13
+#     "X-M2M-Origin": "/"+id,
+#     "X-M2M-RI": randomID(),
+#     "X-M2M-RVI": "5",
+#     "Accept": "application/json",
+#     }
 
-    body={
-        "m2m:csr": {
-            "rn": id,
-            "rr": True,
-            "csi": "/"+id,
-            "cst": 2,
-            "csz": ["application/json", "application/cbor"],
-            "poa": [f"http://{name}:8080"],
-            "srv": ["2a","3","4","5"],
-            "cb": "/"+id+"/"+mn_name,
-            "dcse": []
-        }
-    }
-    response = requests.post(cse_url, headers=headers, json=body)
+#     body={
+#         "m2m:csr": {
+#             "rn": id,
+#             "rr": True,
+#             "csi": "/"+id,
+#             "cst": 2,
+#             "csz": ["application/json", "application/cbor"],
+#             "poa": [f"http://{name}:8080"],
+#             "srv": ["2a","3","4","5"],
+#             "cb": "/"+id+"/"+mn_name,
+#             "dcse": []
+#         }
+#     }
+#     response = requests.post(cse_url, headers=headers, json=body)
 
 
-    # Check the response
-    if response.status_code == 201:
-        print('CSR created successfully')
-        return True
-    # if response.status_code == 403:
-    #     try:
-    #         text = (response.text or "")
-    #         if "already registered" in text and originator in text:
-    #             print("AE already exists (originator already registered on CSE)")
-    #             return True
-    #     except Exception:
-    #         pass
-    print('Error creating CSR: ' + str(response.status_code))
-    return False
+#     # Check the response
+#     if response.status_code == 201:
+#         print('CSR created successfully')
+#         return True
+#     # if response.status_code == 403:
+#     #     try:
+#     #         text = (response.text or "")
+#     #         if "already registered" in text and originator in text:
+#     #             print("AE already exists (originator already registered on CSE)")
+#     #             return True
+#     #     except Exception:
+#     #         pass
+#     print('Error creating CSR: ' + str(response.status_code))
+#     return False
     
+def cleanup(docker_name, mn_id, mn_originator, mn_AEname):
+    unregister_AE(mn_originator, mn_AEname)
+    url=f"{cse_url}/{mn_id}"
+    headers={
+        "X-M2M-Origin": "CAdmin",
+        "X-M2M-RI": randomID(),
+        "X-M2M-RVI": "4"
+    }
+    r = requests.delete(url, headers=headers, timeout=10)
+    if r.status_code in (200,202,204):
+        print("CSR Successfully deleted")
+    remove_CSE(docker_name)
+    unregister_AE(originator, application_name)
+
 
