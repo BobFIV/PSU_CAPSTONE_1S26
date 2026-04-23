@@ -17,9 +17,11 @@ from notificationReceiver import run_notification_receiver, stop_notification_re
 import atexit
 
 from cse import start_CSE, update_config, read_config
+from node import retrieve_node
 
 from processData import process_cin, parse_cin
 import time
+import re
 
 # import logging
 # import requests
@@ -28,17 +30,25 @@ import time
 
 # Start the notification server first
 run_notification_receiver()
-print(cse_url)
+# print(cse_url)
 # set_nummn()
 # set_localports()
 # print(localports)
 # retry AE registration a few times
+d=re.search(r'(\d+)$', application_name)
+if not d:
+    raise ValueError
+node_name='gw-node-0'+d.group(1)
+
 for i in range(20):
+    print("Trying registering AE")
     try:
-        if register_AE(originator, application_name, cse_url) == False:
-            stop_notification_receiver()
-            exit()
-        break
+        node_url=f"{node_base_url}/{node_name}"
+        if retrieve_node('CAdmin', node_url):
+            if register_AE(originator, application_name, cse_url) == False:
+                stop_notification_receiver()
+                exit()
+            break
     except Exception:
         time.sleep(2)
 
@@ -49,16 +59,16 @@ for i in range(20):
 #     exit()
 
 # Create a <container> resource
-if create_container(originator, application_path, 'cmd')==False:
-    stop_notification_receiver()
-    exit()
+# if create_container(originator, application_path, 'cmd')==False:
+#     stop_notification_receiver()
+#     exit()
 
-if create_container(originator, application_path, 'data')==False:
-    stop_notification_receiver()
-    exit()
+# if create_container(originator, application_path, 'data')==False:
+#     stop_notification_receiver()
+#     exit()
 
 # Create a <subscription> resource under the <container> resource
-if create_subscription(originator, application_path+'/cmd', subscription_name, notificationURIs) == False:
+if create_subscription('CAdmin', f'{cse_url}/{node_name}/resources/gateway_cmd', subscription_name, notificationURIs) == False:
     unregister_AE(originator, application_name)
     stop_notification_receiver()
     exit()
@@ -80,11 +90,11 @@ while True: #stop when no notification, don't keep retrieving
         cin_cmd= process_cin(data)
         # cin_cmd=retrieve_contentinstance(originator, application_path+'/data/la')
         if cin_cmd['con']=='execute': #cmd
-            if delete_contentinstance(application_path+'/cmd/'+cin_cmd['rn']):
+            if delete_contentinstance('CAdmin', f'{cse_url}/{node_name}/resources/gateway_cmd/'+cin_cmd['rn']):
                 try:
                     #orchestrator create data first so this way will retrieve both
                     #gateway is late so this cin can be already old=>concern
-                    cin_data=retrieve_contentinstance(originator, application_path+'/data/la') #only la needed for data
+                    cin_data=retrieve_contentinstance('CAdmin', f'{cse_url}/{node_name}/resources/gateway_data/la') #only la needed for data
                     # print(cin_data)
                     if 'cseName' in cin_data['con']: #condition
                         mn_id, mn_name, mn_loport, docker_name, update=update_config(cin_data['con'])

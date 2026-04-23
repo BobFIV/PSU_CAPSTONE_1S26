@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from config import GatewayConfig
 
 import docker
+import re
 
 
 
@@ -44,6 +45,8 @@ application_path = cse_url + "/" + application_name
 # parent=os.path.dirname(__file__)
 # grandparent=os.path.dirname(parent)
 notify_q=Queue()
+node_base_url=cse_url.split("~")[1]
+
 
 #container(docker) name=directory name =in docker network name
 #id-mn=csr name
