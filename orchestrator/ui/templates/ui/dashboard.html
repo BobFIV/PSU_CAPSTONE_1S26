@@ -32,12 +32,24 @@
           <div class="wfTopoMeta" id="wfTopoMeta">0 MN-CSEs • 0 AEs</div>
         </div>
 
-        <div id="cyTopology" class="wfCy" aria-label="Dynamic network diagram"></div>
+        <!-- Diagram + Info Panel side by side -->
+        <div class="wfTopoBody">
+          <div id="cyTopology" class="wfCy" aria-label="Dynamic network diagram"></div>
+
+          <!-- Info panel — hidden until a node is clicked -->
+          <div class="wfInfoPanel" id="wfInfoPanel">
+            <div class="wfInfoPanelHeader">
+              <div class="wfInfoPanelTitle" id="wfInfoPanelTitle">Properties</div>
+              <button class="wfX" type="button" id="wfInfoPanelClose" aria-label="Close">✕</button>
+            </div>
+            <div class="wfInfoPanelBody" id="wfInfoPanelBody"></div>
+          </div>
+        </div>
 
         <div class="wfLegend">
           <div class="wfLegendItem">
             <span class="wfLegendSwatch wfLegendHost"></span>
-            <span>Local Host</span>
+            <span>Host</span>
           </div>
           <div class="wfLegendItem">
             <span class="wfLegendSwatch wfLegendIn"></span>
@@ -81,19 +93,10 @@
   <div class="wfScreen">
     <div class="wfParam wfParamRed">
       <div class="wfParamTitle">parameter of the HOST PLATFORM</div>
-
       <div class="wfLines">
         <div class="wfLine">
-          <span class="wfLineLabel">IP Address :</span>
-          <input class="wfLineInput" name="host_ip" type="text" placeholder="" />
-        </div>
-        <div class="wfLine">
-          <span class="wfLineLabel">Port :</span>
-          <input class="wfLineInput" name="host_port" type="text" placeholder="" />
-        </div>
-        <div class="wfLine">
-          <span class="wfLineLabel">... :</span>
-          <input class="wfLineInput" name="host_extra" type="text" placeholder="" />
+          <span class="wfLineLabel">Name :</span>
+          <input class="wfLineInput" name="host_name" type="text" placeholder="" />
         </div>
       </div>
     </div>
@@ -107,12 +110,6 @@
           <li><button class="wfAction" data-action="deploy_cloud" type="button">Deploy Cloud</button></li>
         </ol>
       </div>
-
-      <div class="wfBox wfBoxGreen">
-        <ol class="wfList">
-          <li>perhaps add new item for VPN</li>
-        </ol>
-      </div>
     </aside>
   </div>
 </template>
@@ -122,23 +119,29 @@
   <div class="wfScreen">
     <div class="wfParam wfParamRed">
       <div class="wfParamTitle">parameter of the CSE</div>
-
       <div class="wfLines">
         <div class="wfLine">
           <span class="wfLineLabel">CSE Name</span>
           <input class="wfLineInput" name="cse_name" type="text" placeholder="" />
         </div>
-
         <div class="wfLine">
           <span class="wfLineLabel">CSE-ID :</span>
           <input class="wfLineInput" name="cse_id" type="text" placeholder="" />
         </div>
-
         <div class="wfLine">
           <span class="wfLineLabel">Port :</span>
           <input class="wfLineInput" name="cse_port" type="text" placeholder="" />
         </div>
-
+        <div class="wfLine">
+          <span class="wfLineLabel">Docker Name</span>
+          <input class="wfLineInput" name="cse_docker_name" type="text" placeholder="" />
+        </div>
+        <div class="wfLine">
+          <span class="wfLineLabel">Host</span>
+          <select class="wfLineInput" name="cse_host" style="border: none; border-bottom: 3px solid rgba(0,0,0,0.45); background: transparent; font: inherit; font-size: 18px;">
+            <option value="">-- Select a host --</option>
+          </select>
+        </div>
         <div class="wfLine">
           <span class="wfLineLabel">... </span>
           <input class="wfLineInput" name="cse_extra" type="text" placeholder="" />
@@ -162,9 +165,7 @@
   <div class="wfScreen">
     <div class="wfParam wfParamRed">
       <div class="wfParamTitle">parameter of the AE</div>
-
       <div class="wfMiniNote" id="aeTargetHint">Deploy a CSE first to attach an AE.</div>
-
       <div class="wfLines">
         <div class="wfLine">
           <span class="wfLineLabel">AE Name</span>
