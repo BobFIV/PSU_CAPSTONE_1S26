@@ -8,10 +8,6 @@
   const statusEl = document.getElementById("wfStatus");
   const topoMetaEl = document.getElementById("wfTopoMeta");
   const cyContainer = document.getElementById("cyTopology");
-  const infoPanel = document.getElementById("wfInfoPanel");
-  const infoPanelTitle = document.getElementById("wfInfoPanelTitle");
-  const infoPanelBody = document.getElementById("wfInfoPanelBody");
-  const infoPanelClose = document.getElementById("wfInfoPanelClose");
 
   const tpl = (id) => document.getElementById(id).content.cloneNode(true);
 
@@ -19,20 +15,21 @@
   let topologyPollTimer = null;
 
   const state = {
-    host: { name: "", deployedAction: null },
-    cse: { name: "", port: "", cseID: "", dockerName: "", hostName: "", extra: "", deployedAction: null },
+    host: { ip: "", port: "", extra: "", deployedAction: null },
+    cse: { name: "", port: "", cseID: "", extra: "", deployedAction: null },
     ae: { name: "", extra: "", deployedAction: null },
     topology: {
       version: 0,
       updated_at: null,
-      hosts: [],  
       cses: [],
       aes: [],
     },
   };
 
   function setStatus(msg) {
-    if (statusEl) statusEl.textContent = msg;
+    if (statusEl) {
+      statusEl.textContent = msg;
+    }
   }
 
   function normalizeTopology(topology) {
@@ -40,7 +37,6 @@
     return {
       version: typeof safe.version === "number" ? safe.version : 0,
       updated_at: safe.updated_at || null,
-      hosts: Array.isArray(safe.hosts) ? safe.hosts : [],
       cses: Array.isArray(safe.cses) ? safe.cses : [],
       aes: Array.isArray(safe.aes) ? safe.aes : [],
     };
@@ -59,72 +55,15 @@
   }
 
   function updateMeta() {
-    const hostCount = state.topology.hosts.length;
     const cseCount = state.topology.cses.length;
-    const aeCount = state.topology.aes.filter(
-      ae => ae.name !== 'CAdmin' && ae.name !== 'orchestrator'
-    ).length;
-  
+    const aeCount = state.topology.aes.length;
+
     if (topoMetaEl) {
       topoMetaEl.textContent =
-        `${hostCount} Host${hostCount === 1 ? "" : "s"} • ` +
         `${cseCount} MN-CSE${cseCount === 1 ? "" : "s"} • ` +
         `${aeCount} AE${aeCount === 1 ? "" : "s"}`;
     }
   }
-
-  // ── Info Panel ────────────────────────────────────────────────
-  function showInfoPanel(title, htmlContent) {
-    infoPanelTitle.textContent = title;
-    infoPanelBody.innerHTML = htmlContent;
-    infoPanel.classList.add("open");
-  }
-
-  function hideInfoPanel() {
-    infoPanel.classList.remove("open");
-    infoPanelBody.innerHTML = "";
-  }
-
-  infoPanelClose.addEventListener("click", hideInfoPanel);
-
-  async function fetchNodeInfo(nodeType, resourceName) {
-    showInfoPanel(resourceName || "IN-CSE", `<div class="wfInfoLoading">Loading…</div>`);
-    try {
-      const params = new URLSearchParams({ type: nodeType, name: resourceName || "" });
-      const res = await fetch(`/api/node/info/?${params}`);
-      const data = await res.json();
-
-      if (!data.success) {
-        showInfoPanel(resourceName || "IN-CSE",
-          `<div class="wfInfoError">⚠ ${data.message || "Failed to fetch"}</div>`);
-        return;
-      }
-
-      const props = data.properties || {};
-      const rows = Object.entries(props).map(([k, v]) => {
-        let val = Array.isArray(v) ? v.join(", ") : String(v);
-        if (TIME_FIELDS.has(k)) val = formatOneM2MTime(val);
-        return `<tr><td class="wfInfoKey">${k}</td><td class="wfInfoVal">${val}</td></tr>`;
-      }).join("");
-
-      const typeLabel = {
-        "m2m:cb":  "CSE Base",
-        "m2m:ae":  "Application Entity",
-        "m2m:csr": "Remote CSE",
-        "m2m:nod": "Node",
-      }[data.resourceType] || data.resourceType || "";
-
-      showInfoPanel(
-        resourceName || "IN-CSE",
-        `<div class="wfInfoType">${typeLabel}</div>
-         <table class="wfInfoTable"><tbody>${rows}</tbody></table>`
-      );
-    } catch (e) {
-      showInfoPanel(resourceName || "IN-CSE",
-        `<div class="wfInfoError">⚠ Request failed: ${e}</div>`);
-    }
-  }
-  // ─────────────────────────────────────────────────────────────
 
   function ensureCytoscape() {
     if (cy || !window.cytoscape || !cyContainer) return;
@@ -154,12 +93,24 @@
           },
         },
         {
+          selector: 'node[type = "host"]',
+          style: {
+            "background-color": "#f0b429",
+          },
+        },
+        {
           selector: 'node[type = "in"]',
-          style: { "background-color": "#2d6cdf", "color": "#ffffff" },
+          style: {
+            "background-color": "#2d6cdf",
+            "color": "#ffffff",
+          },
         },
         {
           selector: 'node[type = "mn"]',
-          style: { "background-color": "#2ca24d", "color": "#ffffff" },
+          style: {
+            "background-color": "#2ca24d",
+            "color": "#ffffff",
+          },
         },
         {
           selector: 'node[type = "ae"]',
@@ -181,15 +132,26 @@
           },
         },
         {
-          selector: 'node[type = "host"]',
-          style: { "background-color": "#f0b429" },
+          selector: 'edge[type = "vpn"]',
+          style: {
+            "line-style": "dashed",
+            "line-color": "#2ca24d",
+            "target-arrow-color": "#2ca24d",
+          },
         },
-        
+        {
+          selector: 'edge[type = "host-link"]',
+          style: {
+            "line-style": "solid",
+            "line-color": "#f0b429",
+            "target-arrow-color": "#f0b429",
+          },
+        },
       ],
       layout: {
         name: "breadthfirst",
         directed: true,
-        roots: ["in-cse"],
+        roots: ["local-host"],
         padding: 40,
         spacingFactor: 1.25,
         animate: false,
@@ -199,9 +161,7 @@
 
     cy.on("tap", "node", (event) => {
       const data = event.target.data();
-      console.log("Node clicked:", data);
       setStatus(data.statusText || data.label);
-      fetchNodeInfo(data.type, data.resourceName);
     });
   }
 
@@ -209,84 +169,76 @@
     const elements = [
       {
         data: {
+          id: "local-host",
+          label: "Local Host",
+          type: "host",
+          statusText: "Local Host node",
+        },
+      },
+      {
+        data: {
           id: "in-cse",
           label: "IN-CSE\norchestration AE",
           type: "in",
-          resourceName: "",
           statusText: "IN-CSE / Orchestrator node",
         },
       },
+      {
+        data: {
+          id: "edge-host-in",
+          source: "local-host",
+          target: "in-cse",
+          type: "host-link",
+        },
+      },
     ];
-  
-    // Host nodes + IN-CSE -> Host edges
-    state.topology.hosts.forEach((host) => {
-      elements.push({
-        data: {
-          id: host.nodeId,
-          label: host.name,
-          type: "host",
-          resourceName: host.name,
-          statusText: `Host: ${host.name}`,
-        },
-      });
-  
-      // IN-CSE -> Host
-      elements.push({
-        data: {
-          id: `incse-host-${host.nodeId}`,
-          source: "in-cse",
-          target: host.nodeId,
-          type: "registration",
-        },
-      });
-    });
-  
-    // CSE nodes + edges
+
     state.topology.cses.forEach((cse) => {
       const labelParts = [cse.name || "MN-CSE"];
       if (cse.cseID) labelParts.push(`ID: ${cse.cseID}`);
       if (cse.port) labelParts.push(`Port: ${cse.port}`);
-  
+
       elements.push({
         data: {
           id: cse.nodeId,
           label: labelParts.join("\n"),
           type: "mn",
-          resourceName: cse.name || (cse.cseID || "").replace(/^\//, ""),
           statusText:
             `${cse.name || "MN-CSE"}` +
             `${cse.cseID ? ` (${cse.cseID})` : ""}` +
             `${cse.port ? ` on port ${cse.port}` : ""}`,
         },
       });
-  
-      
-  
-      // Host -> MN-CSE
-      if (cse.hostNodeId) {
-        elements.push({
-          data: {
-            id: `host-link-${cse.nodeId}`,
-            source: cse.hostNodeId,
-            target: cse.nodeId,
-            type: "registration",
-          },
-        });
-      }
+
+      elements.push({
+        data: {
+          id: `reg-${cse.nodeId}`,
+          source: "in-cse",
+          target: cse.nodeId,
+          type: "registration",
+        },
+      });
+
+      elements.push({
+        data: {
+          id: `vpn-${cse.nodeId}`,
+          source: "local-host",
+          target: cse.nodeId,
+          type: "vpn",
+        },
+      });
     });
-  
-    // AE nodes
+
     state.topology.aes.forEach((ae) => {
-      if (ae.name === "CAdmin") return;
       elements.push({
         data: {
           id: ae.nodeId,
           label: ae.name || "AE",
           type: "ae",
-          resourceName: ae.name || "",
           statusText: `AE: ${ae.name || "AE"}`,
         },
       });
+
       elements.push({
         data: {
           id: `edge-${ae.parentNodeId}-${ae.nodeId}`,
@@ -296,19 +248,23 @@
         },
       });
     });
-  
+
     return elements;
   }
 
   function renderTopology() {
     ensureCytoscape();
-    if (!cy) { setStatus("Cytoscape failed to load."); return; }
+    if (!cy) {
+      setStatus("Cytoscape failed to load.");
+      return;
+    }
+
     cy.elements().remove();
     cy.add(topologyElements());
     cy.layout({
       name: "breadthfirst",
       directed: true,
-      roots: ["in-cse"],
+      roots: ["local-host"],
       padding: 40,
       spacingFactor: 1.25,
       animate: false,
@@ -319,6 +275,7 @@
     try {
       const res = await fetch(url, options);
       const text = await res.text();
+
       try {
         return JSON.parse(text);
       } catch {
@@ -329,7 +286,10 @@
         };
       }
     } catch (e) {
-      return { success: false, message: String(e) };
+      return {
+        success: false,
+        message: String(e),
+      };
     }
   }
 
@@ -344,14 +304,19 @@
   async function syncTopologyFromBackend(silent = false) {
     const topology = await fetchTopologyFromBackend();
     if (!topology) {
-      if (!silent) setStatus("Failed to sync topology from backend");
+      if (!silent) {
+        setStatus("Failed to sync topology from backend");
+      }
       return false;
     }
+
     const currentVersion = state.topology.version || 0;
     applyTopology(topology);
+
     if (!silent && topology.version !== currentVersion) {
       setStatus("Topology synced from backend");
     }
+
     return true;
   }
 
@@ -406,51 +371,38 @@
   function refreshAeTargetHint(root) {
     const hint = root.querySelector("#aeTargetHint");
     if (!hint) return;
+
     const parent = latestCse();
     if (!parent) {
-      hint.textContent = "No CSE deployed yet — AE will attach to IN-CSE.";
+      hint.textContent = "Deploy a CSE first to attach an AE.";
       return;
     }
+
     hint.textContent =
       `New AEs will attach to: ${parent.name}` +
       `${parent.cseID ? ` (${parent.cseID})` : ""}`;
   }
 
-  async function provision_host() {
-    return await fetchJson("/api/provision/host/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: state.host.name || "" }),
-    });
-  }
   function bindHost(root) {
-    const name = root.querySelector('input[name="host_name"]');
-    name.value = state.host.name || "";
-    name.addEventListener("input", () => (state.host.name = name.value));
-  
+    const ip = root.querySelector('input[name="host_ip"]');
+    const port = root.querySelector('input[name="host_port"]');
+    const extra = root.querySelector('input[name="host_extra"]');
+
+    ip.value = state.host.ip;
+    port.value = state.host.port;
+    extra.value = state.host.extra;
+
+    ip.addEventListener("input", () => (state.host.ip = ip.value));
+    port.addEventListener("input", () => (state.host.port = port.value));
+    extra.addEventListener("input", () => (state.host.extra = extra.value));
+
     if (state.host.deployedAction) markSelected(root, state.host.deployedAction);
-  
+
     root.querySelectorAll(".wfAction").forEach((btn) => {
-      btn.addEventListener("click", async () => {
+      btn.addEventListener("click", () => {
         state.host.deployedAction = btn.dataset.action;
         markSelected(root, state.host.deployedAction);
-        if (btn.dataset.action === "deploy_local") {
-          try {
-            const data = await provision_host();
-  
-            if (data.success) {
-              enableBackToTopology("Host deployed locally");
-            } else {
-              enableBackToTopology("Deployment failed");
-            }
-          } catch (err) {
-            console.error(err);
-            enableBackToTopology("Error deploying host");
-          }
-        } else {
-          enableBackToTopology(`Host step saved (${btn.textContent.trim()})`);
-        }
-        //enableBackToTopology(`Host step saved (${btn.textContent.trim()})`);
+        enableBackToTopology(`Host step saved (${btn.textContent.trim()})`);
       });
     });
   }
@@ -475,31 +427,16 @@
     const name = root.querySelector('input[name="cse_name"]');
     const cseId = root.querySelector('input[name="cse_id"]');
     const port = root.querySelector('input[name="cse_port"]');
-    const dockerName = root.querySelector('input[name="cse_docker_name"]');
-    const hostSelect = root.querySelector('select[name="cse_host"]');
     const extra = root.querySelector('input[name="cse_extra"]');
 
     name.value = state.cse.name;
     cseId.value = state.cse.cseID;
     port.value = state.cse.port;
-    dockerName.value = state.cse.dockerName;
     extra.value = state.cse.extra;
-
-    state.topology.hosts.forEach((host) => {
-      const option = document.createElement("option");
-      option.value = host.name;
-      option.textContent = host.name;
-      hostSelect.appendChild(option);
-    });
-    
-    // Restore previously selected value
-    if (state.cse.hostName) hostSelect.value = state.cse.hostName;
 
     name.addEventListener("input", () => (state.cse.name = name.value));
     cseId.addEventListener("input", () => (state.cse.cseID = cseId.value));
     port.addEventListener("input", () => (state.cse.port = port.value));
-    dockerName.addEventListener("input", () => (state.cse.dockerName = dockerName.value));
-    hostSelect.addEventListener("change", () => (state.cse.hostName = hostSelect.value));
     extra.addEventListener("input", () => (state.cse.extra = extra.value));
 
     if (state.cse.deployedAction) markSelected(root, state.cse.deployedAction);
@@ -513,8 +450,6 @@
           cseName: (state.cse.name || "").trim(),
           localPort: (state.cse.port || "").trim(),
           cseID: (state.cse.cseID || "").trim(),
-          dockerName: (state.cse.dockerName || "").trim(),
-          hostName: (state.cse.hostName || "").trim(),
           deployType: btn.textContent.trim(),
         };
 
@@ -546,7 +481,6 @@
         enableBackToTopology(`CSE step saved (${btn.textContent.trim()})`);
       });
     });
-
   }
 
   function bindAE(root) {
@@ -612,7 +546,9 @@
   }
 
   document.querySelectorAll(".wfNavItem").forEach((btn) => {
-    btn.addEventListener("click", () => openModal(btn.dataset.open));
+    btn.addEventListener("click", () => {
+      openModal(btn.dataset.open);
+    });
   });
 
   btnCloseX.addEventListener("click", closeModal);
@@ -632,17 +568,7 @@
   renderTopology();
   updateMeta();
   setStatus("Topology ready");
+
   syncTopologyFromBackend(true);
   startTopologyPolling();
 })();
-
-function formatOneM2MTime(val) {
-  // Format: 20260414T162152,856667 -> Apr 14, 2026, 16:21:52
-  const s = String(val).replace(',', '.');
-  const m = s.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/);
-  if (!m) return val;
-  const dt = new Date(`${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}`);
-  return isNaN(dt) ? val : dt.toLocaleString();
-}
-
-const TIME_FIELDS = new Set(['Created At', 'Last Modified', 'et']);

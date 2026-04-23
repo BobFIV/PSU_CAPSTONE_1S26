@@ -1,2 +1,4 @@
 requests
 acmecse
+docker
+urllib3

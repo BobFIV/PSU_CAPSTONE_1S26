@@ -1,7 +1,7 @@
 from setup import cse_url, randomID
 import requests
 
-def register_AE(originator:str, application_name: str, url:str) -> bool:
+def register_AE(originator:str, application_name: str, url:str, node_url:str=None) -> bool:
     """ Register an Application Entity
 
         Args:
@@ -24,9 +24,11 @@ def register_AE(originator:str, application_name: str, url:str) -> bool:
             'rn': application_name, 
             'api': 'N.org.'+application_name,
             'rr': True,
-            'srv': ['4']
+            'srv': ['4'], #add lbl
         }
     }
+    if node_url:
+        body['m2m:ae']['nl']=node_url
 
     # Perform the http request to create the <AE> resource
     response = requests.post(url, headers=headers, json=body)

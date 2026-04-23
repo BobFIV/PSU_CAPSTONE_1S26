@@ -2,10 +2,6 @@ import atexit
 import copy
 import threading
 from datetime import datetime, timezone
-import signal
-import sys
-from pathlib import Path
-import shutil
 
 from .setup import *
 from .ae import register_AE, unregister_AE
@@ -14,12 +10,8 @@ from .subscription import create_subscription
 from .contentInstance import create_contentInstance, create_contentInstance_with_response
 from .notificationReceiver import run_notification_receiver, stop_notification_receiver
 
-from .node_flexnode_for_provision_host import create_node, create_flex_container
-
 registration_status = "Not connected to IN-CSE"
 final_registration_status = "Not Connected to IN-CSE"
-provisioned_host_names = []
-
 
 # -----------------------------
 # In-memory topology state
@@ -28,7 +20,6 @@ _topology_lock = threading.RLock()
 _topology_state = {
     "version": 0,
     "updated_at": None,
-    "hosts": [],
     "cses": [],
     "aes": [],
 }
@@ -95,18 +86,12 @@ def make_cse_node_id(name: str = "", cse_id: str = "", port: str = "") -> str:
     return f"mn-{_slugify(base)}"
 
 
-def upsert_cse_topology(name: str = "", cse_id: str = "", port: str = "", deploy_type: str = "Deploy CSE", source: str = "api", host_name: str = ""):
+def upsert_cse_topology(name: str = "", cse_id: str = "", port: str = "", deploy_type: str = "Deploy CSE", source: str = "api"):
     with _topology_lock:
         final_name = (name or "").strip() or _next_default_name("mn-cse", _topology_state["cses"])
         final_cse_id = (cse_id or "").strip()
         final_port = (port or "").strip()
         node_id = make_cse_node_id(final_name, final_cse_id, final_port)
-
-        # Use explicitly selected host, fall back to latest
-        if host_name and host_name.strip():
-            host_node_id = f"host-{_slugify(host_name.strip())}"
-        else:
-            host_node_id = _latest_host_node_id_locked()
 
         record = {
             "nodeId": node_id,
@@ -114,7 +99,6 @@ def upsert_cse_topology(name: str = "", cse_id: str = "", port: str = "", deploy
             "cseID": final_cse_id,
             "port": final_port,
             "deployType": deploy_type or "Deploy CSE",
-            "hostNodeId": host_node_id,
             "source": source,
             "updatedAt": _utc_now_iso(),
         }
@@ -130,7 +114,6 @@ def upsert_cse_topology(name: str = "", cse_id: str = "", port: str = "", deploy
         return copy.deepcopy(record)
 
 
-
 def add_ae_to_topology(name: str = "", parent_node_id: str = "", parent_cse_id: str = "", deploy_type: str = "Deploy AE", source: str = "api"):
     with _topology_lock:
         target_parent = (parent_node_id or "").strip()
@@ -143,9 +126,8 @@ def add_ae_to_topology(name: str = "", parent_node_id: str = "", parent_cse_id: 
         if not target_parent:
             target_parent = _latest_cse_node_id_locked()
 
-        # Fall back to IN-CSE node if no MN-CSE exists yet
         if not target_parent:
-            target_parent = "in-cse"   # <-- this is the fix
+            return None
 
         final_name = (name or "").strip() or _next_default_name("sample-ae", _topology_state["aes"])
 
@@ -257,6 +239,12 @@ def subscribe_to_cse_base():
 
 
 def initialize_AE_only(application_name):
+    """
+    Startup logic:
+    - register orchestrator AE
+    - start notification receiver
+    - subscribe to IN-CSE base for gatewayAgent AE-create notifications
+    """
     global registration_status
     global final_registration_status
     try:
@@ -264,17 +252,12 @@ def initialize_AE_only(application_name):
             registration_status = f"AE registration failed for '{application_name}'"
             return False
 
+        atexit.register(lambda: unregister_AE(application_name, originator_ae_create))
         registration_status = f"AE '{application_name}' registered successfully"
         print(registration_status)
         final_registration_status = "Orchestrator AE successfully created"
 
         subscribe_to_cse_base()
-
-        # Register cleanup for all exit scenarios
-        atexit.register(_cleanup_on_exit)
-        signal.signal(signal.SIGTERM, _signal_handler)
-        signal.signal(signal.SIGINT, _signal_handler)
-
         return True
 
     except Exception as e:
@@ -282,25 +265,14 @@ def initialize_AE_only(application_name):
         return False
 
 
-def send_command_to_gateway(content: str, host_name: str = "") -> tuple:
-    """Create contentInstance in the selected host's gateway_cmd container."""
-    if not provisioned_host_names:
-        return False, 0, "No host provisioned yet. Use Provision Host first."
-    
-    # Use selected host if valid, otherwise fall back to latest
-    target = host_name.strip() if host_name and host_name.strip() in provisioned_host_names else provisioned_host_names[-1]
-    path = cse_url + '/' + target + '/resources/gateway_cmd'
-    return create_contentInstance_with_response(originator_gateway_control, path, content)
+def send_command_to_gateway(content: str) -> tuple:
+    """Create contentInstance in gatewayAgent/cmd."""
+    return create_contentInstance_with_response(originator_gateway_control, gateway_cmd_path, content)
 
 
-def send_data_to_gateway(content: str, host_name: str = "") -> tuple:
-    """Create contentInstance in the selected host's gateway_data container."""
-    if not provisioned_host_names:
-        return False, 0, "No host provisioned yet. Use Provision Host first."
-    
-    target = host_name.strip() if host_name and host_name.strip() in provisioned_host_names else provisioned_host_names[-1]
-    path = cse_url + '/' + target + '/resources/gateway_data'
-    return create_contentInstance_with_response(originator_gateway_control, path, content)
+def send_data_to_gateway(content: str) -> tuple:
+    """Create contentInstance in gatewayAgent/data."""
+    return create_contentInstance_with_response(originator_gateway_control, gateway_data_path, content)
 
 def discover_resources_from_cse() -> dict:
     """
@@ -332,7 +304,7 @@ def discover_resources_from_cse() -> dict:
                 r2 = _requests.get(f'http://localhost:8080/{uri}', headers=h2, timeout=5)
                 if r2.status_code == 200:
                     csr = r2.json().get('m2m:csr', {})
-                    cse_name = csr.get('rn', csr.get('csn', ''))
+                    cse_name = csr.get('csn', csr.get('rn', ''))
                     cse_id   = csr.get('csi', '')
                     # Try to extract port from pointOfAccess (poa)
                     poa_list = csr.get('poa', [])
@@ -376,6 +348,10 @@ def discover_resources_from_cse() -> dict:
 
 
 def sync_topology_from_cse():
+    """
+    Pull live resource data from IN-CSE and upsert into topology state.
+    Called by the topology API endpoint so the frontend always gets fresh data.
+    """
     discovered = discover_resources_from_cse()
 
     for cse in discovered['cses']:
@@ -387,260 +363,10 @@ def sync_topology_from_cse():
             source='cse-discovery',
         )
 
+    # For AEs, attach to matching CSE by cseID or fall back to latest
     for ae in discovered['aes']:
-        if ae['name'] == 'CAdmin':
-            continue
         add_ae_to_topology(
             name=ae['name'],
-            parent_node_id='in-cse',   # <-- always attach to IN-CSE
             deploy_type='Discovered from IN-CSE',
             source='cse-discovery',
         )
-def query_node_properties(node_type: str, name: str) -> dict:
-    """
-    Query the IN-CSE directly for a resource's properties.
-    node_type: 'in'  -> query the CSE base (m2m:cb)
-               'mn'  -> query remoteCSE by name (m2m:csr)
-               'ae'  -> query AE by name (m2m:ae)
-    name: the resource name (rn) on the CSE
-    """
-    import requests as _requests
-
-    headers = {
-        'X-M2M-Origin': originator_gateway_control,
-        'X-M2M-RI': randomID(),
-        'X-M2M-RVI': '4',
-        'Accept': 'application/json',
-    }
-
-    try:
-        if node_type == 'in':
-            url = cse_url
-        elif node_type == 'host':
-            if not name:
-                return {"success": False, "message": "Resource name required"}
-            url = f"{cse_url}/{name}"
-        elif node_type == 'ae':
-            if not name:
-                return {"success": False, "message": "Resource name required"}
-            url = f"{cse_url}/{name}"
-        elif node_type == 'mn':
-            if not name:
-                return {"success": False, "message": "Resource name required"}
-            clean_name = name.lstrip('/')
-            url = f"{cse_url}/{clean_name}"
-        else:
-            return {"success": False, "message": f"Unknown node type: {node_type}"}
-
-
-        r = _requests.get(url, headers=headers, timeout=5)
-
-        if r.status_code != 200:
-            return {
-                "success": False,
-                "message": f"CSE returned {r.status_code}",
-                "raw": r.text[:300] if r.text else "",
-            }
-
-        data = r.json()
-
-        # Extract the inner resource object regardless of wrapper key
-        resource = None
-        for key in ('m2m:cb', 'm2m:ae', 'm2m:csr', 'm2m:nod'):
-            if key in data:
-                resource = data[key]
-                resource_type = key
-                break
-
-        if resource is None:
-            return {"success": False, "message": "Unrecognised resource format", "raw": data}
-
-        # Build a clean human-readable properties dict
-        label_map = {
-            'rn':   'Resource Name',
-            'ri':   'Resource ID',
-            'pi':   'Parent ID',
-            'ct':   'Created At',
-            'lt':   'Last Modified',
-            'csi':  'CSE ID',
-            'csn':  'CSE Name',
-            'cst':  'CSE Type',
-            'srt':  'Supported Resource Types',
-            'srv':  'Supported Release Versions',
-            'poa':  'Point of Access',
-            'api':  'App ID',
-            'aei':  'AE ID',
-            'rr':   'Request Reachability',
-            'nl':   'Node Link',
-            'lbl':  'Labels',
-            'et': 'Expiry Time',
-        }
-
-        props = {}
-        for k, v in resource.items():
-            label = label_map.get(k, k)
-            props[label] = v
-
-        return {
-            "success": True,
-            "resourceType": resource_type,
-            "properties": props,
-        }
-
-    except _requests.RequestException as e:
-        return {"success": False, "message": f"Request failed: {e}"}
-    except Exception as e:
-        return {"success": False, "message": f"Error: {e}"}
-    
-def initialize_provision_host(name: str) -> bool:
-    global provisioned_host_names 
-    try:
-        node_rn = name.strip() if name and name.strip() else "gw-node-01"
-        created = create_node(originator_gateway_control, cse_url, node_rn)
-        if created:
-            print("node created Successfully")
-            provisioned_host_names.append(node_rn)   # store for other functions to use
-            #for making new directory
-
-            # Base directory = project root (adjust parents[] as needed)
-            BASE_DIR = Path(__file__).resolve().parent.parent.parent
-
-            name = "NodeName_" +node_rn
-            new_dir = BASE_DIR / name
-            new_dir.mkdir(exist_ok=True)
-
-            file_path = new_dir / "config.txt"
-
-            if not file_path.exists():
-                with open(file_path, "w") as f:
-                    f.write(f"node_name={node_rn}\n")
-            
-            upsert_host_topology(node_rn) 
-            node_path = cse_url + '/' + node_rn
-            flex_node_created = create_flex_container(originator_gateway_control, node_path, "resources")
-            if flex_node_created:
-                print("Node / Flexnode created")
-                gateway_container_path = node_path + "/" + "resources"
-                cmd_container_created = create_container(originator_gateway_control,gateway_container_path,"gateway_cmd")
-                data_container_created = create_container(originator_gateway_control,gateway_container_path,"gateway_data")
-                if cmd_container_created and data_container_created:
-                    print("node struture created successfully")
-                    return True
-                elif not cmd_container_created:
-                    print("failed to create cmd containter")
-                    return False
-                else:
-                    print("failed to create data container")
-                    return False
-            else:
-                print("flex container not created")
-                return False
-        else:
-            print("error in creating Node / flexnode")
-            return False
-    except Exception as e:
-        print("major error in creating node / flexnode", e)
-        return False
-
-def upsert_host_topology(name: str) -> dict:
-    with _topology_lock:
-        node_id = f"host-{_slugify(name)}"
-        for index, existing in enumerate(_topology_state["hosts"]):
-            if existing["nodeId"] == node_id:
-                _touch_topology()
-                return copy.deepcopy(existing)
-        record = {
-            "nodeId": node_id,
-            "name": name,
-            "updatedAt": _utc_now_iso(),
-        }
-        _topology_state["hosts"].append(record)
-        _touch_topology()
-        return copy.deepcopy(record)
-
-def _latest_host_node_id_locked():
-    if not _topology_state["hosts"]:
-        return None
-    return _topology_state["hosts"][-1]["nodeId"]
-
-def delete_subscription(originator: str, path: str) -> bool:
-    import requests as _requests
-    headers = {
-        'X-M2M-Origin': originator,
-        'X-M2M-RI': randomID(),
-        'X-M2M-RVI': '4',
-    }
-    try:
-        r = _requests.delete(path, headers=headers, timeout=5)
-        if r.status_code == 200:
-            print('Subscription deleted successfully')
-            return True
-        print(f'Error deleting subscription: {r.status_code}')
-        return False
-    except Exception as e:
-        print(f'Error deleting subscription: {e}')
-        return False
-
-
-def delete_node(originator: str, path: str) -> bool:
-    import requests as _requests
-    headers = {
-        'X-M2M-Origin': originator,
-        'X-M2M-RI': randomID(),
-        'X-M2M-RVI': '4',
-    }
-    try:
-        r = _requests.delete(path, headers=headers, timeout=5)
-        if r.status_code == 200:
-            print('Node deleted successfully')
-            return True
-        print(f'Error deleting node: {r.status_code}')
-        return False
-    except Exception as e:
-        print(f'Error deleting node: {e}')
-        return False
-
-def _cleanup_on_exit():
-    """Remove all oneM2M resources created by the orchestrator."""
-    print("Orchestrator shutting down — cleaning up oneM2M resources...")
-    
-    # Delete subscription
-    delete_subscription(
-        originator_gateway_control,
-        cse_url + '/orchestratorSubToCSEBase'
-    )
-
-    BASE_DIR = Path(__file__).resolve().parents[2]
-    print("BASE_DIR:", BASE_DIR)
-    
-    for item in BASE_DIR.iterdir():
-        if (
-            item.is_dir()
-            and item.name.startswith("NodeName_")
-            and (item / "config.txt").exists()
-        ):
-            try:
-                shutil.rmtree(item)
-                print(f"Deleted directory: {item}")
-            except Exception as e:
-                print(f"Failed to delete {item}: {e}")
-    
-
-    # Delete provisioned node if one exists
-    for host_name in provisioned_host_names:
-        delete_node(
-            originator_gateway_control,
-            cse_url + '/' + host_name
-        )
-
-    # Unregister orchestrator AE
-    unregister_AE(application_name, originator_ae_create)
-
-    stop_notification_receiver()
-    print("Cleanup complete.")
-
-
-def _signal_handler(sig, frame):
-    _cleanup_on_exit()
-    sys.exit(0)
-

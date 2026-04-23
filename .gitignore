@@ -10,3 +10,5 @@ __pycache__/
 .vscode
 **/acme_in/
 **/acme-mn*/
+.env
+.env.*

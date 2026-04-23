@@ -16,36 +16,59 @@ from notificationReceiver import run_notification_receiver, stop_notification_re
 
 import atexit
 
-from start import start_CSE, update_config, read_config, stop_CSE, set_nummn, set_localports
+from cse import start_CSE, update_config, read_config, cleanup
+from node import retrieve_node
 
 from processData import process_cin, parse_cin
+import time
+import re
+
+# import logging
+# import requests
 
 # import sys
 
 # Start the notification server first
 run_notification_receiver()
-set_nummn()
-set_localports()
+# print(cse_url)
+# set_nummn()
+# set_localports()
 # print(localports)
+# retry AE registration a few times
+d=re.search(r'(\d+)$', application_name)
+if not d:
+    raise ValueError
+node_name='gw-node-0'+d.group(1)
 
+for i in range(20):
+    print("Trying registering AE")
+    try:
+        node_url=f"{node_base_url}/{node_name}"
+        if retrieve_node('CAdmin', f'{cse_url}/{node_name}'):
+            if register_AE(originator, application_name, cse_url, node_url) == False:
+                stop_notification_receiver()
+                exit()
+            break
+    except Exception:
+        time.sleep(2)
 
 # Register gatewayAgent AE and create cmd/data only under gatewayAgent (orchestrator does not create these)
 # Register an AE
-if register_AE(originator, application_name, cse_url) == False:
-    stop_notification_receiver()
-    exit()
+# if register_AE(originator, application_name, cse_url) == False:
+#     stop_notification_receiver()
+#     exit()
 
 # Create a <container> resource
-if create_container(originator, application_path, 'cmd')==False:
-    stop_notification_receiver()
-    exit()
+# if create_container(originator, application_path, 'cmd')==False:
+#     stop_notification_receiver()
+#     exit()
 
-if create_container(originator, application_path, 'data')==False:
-    stop_notification_receiver()
-    exit()
+# if create_container(originator, application_path, 'data')==False:
+#     stop_notification_receiver()
+#     exit()
 
 # Create a <subscription> resource under the <container> resource
-if create_subscription(originator, application_path+'/cmd', subscription_name, notificationURIs) == False:
+if create_subscription('CAdmin', f'{cse_url}/{node_name}/resources/gateway_cmd', subscription_name, notificationURIs) == False:
     unregister_AE(originator, application_name)
     stop_notification_receiver()
     exit()
@@ -67,19 +90,20 @@ while True: #stop when no notification, don't keep retrieving
         cin_cmd= process_cin(data)
         # cin_cmd=retrieve_contentinstance(originator, application_path+'/data/la')
         if cin_cmd['con']=='execute': #cmd
-            if delete_contentinstance(application_path+'/cmd/'+cin_cmd['rn']):
+            if delete_contentinstance('CAdmin', f'{cse_url}/{node_name}/resources/gateway_cmd/'+cin_cmd['rn']):
                 try:
                     #orchestrator create data first so this way will retrieve both
                     #gateway is late so this cin can be already old=>concern
-                    cin_data=retrieve_contentinstance(originator, application_path+'/data/la') #only la needed for data
+                    cin_data=retrieve_contentinstance('CAdmin', f'{cse_url}/{node_name}/resources/gateway_data/la') #only la needed for data
                     # print(cin_data)
                     if 'cseName' in cin_data['con']: #condition
-                        mn_id, mn_name, mn_loport, docker_name=update_config(cin_data['con'])
+                        mn_id, mn_name, mn_loport, docker_name, update=update_config(cin_data['con'])
                         mn_port=read_config(f'{docker_name}/acme.ini', 'httpPort')
-                        mn_url=f'http://localhost:{mn_loport}/~/{mn_id}/{mn_name}'
-                        
-                        if start_CSE(mn_id, docker_name, mn_loport, mn_port): #container name==cse name-> don't give name
-                            register_AE('CgatewayAgentMN', 'gatewayAgentMN', mn_url)
+                        # mn_url=f'http://localhost:{mn_loport}/~/{mn_id}/{mn_name}' #mn_loport(pi port):cseport
+                        mn_url=f'http://{docker_name}:{mn_port}/~/{mn_id}/{mn_name}' #change to pi url
+                        if start_CSE(mn_id, docker_name, mn_name, mn_loport, mn_port, mn_url, update, network_name=docker_net): #container name==networkhostname, dockernet is defined
+                            register_AE(originator+'MN', application_name+'MN', mn_url)
+                            # check_remoteCSE(originator, application_name, cse_url)
                 except KeyError:
                     print("CIN does not exist in data")
 
@@ -101,14 +125,14 @@ while True: #stop when no notification, don't keep retrieving
 
 # Content in gatewayAgent/cmd and gatewayAgent/data (orchestrator pushes via API; optional initial values here)
 # register_AE('Corchestrator', 'orchestrator', cse_url)
-# create_contentInstance(originator, application_path+'/cmd', 'execute')
-# create_contentInstance(originator, application_path+'/data', 'cseName=cse-mn1\ncseID=id-mn1\nlocalPort=8081\n')
+# create_contentInstance('CgatewayAgent1', 'http://localhost:8080/~/id-in/cse-in/gatewayAgent1/cmd', 'execute')
+# create_contentInstance('CgatewayAgent1', 'http://localhost:8080/~/id-in/cse-in/gatewayAgent1/data', 'dockerName=acme-mn1\ncseName=cse-mn1\ncseID=id-mn1\nlocalPort=8081\n')
 
 
 
 
 # Retrieve the <container> resource
-        # cin=retrieve_contentinstance(originator, application_path+'/cmd/la')
+        # cin=retrieve_contentinstance(originator, 'http://host.docker.internal:8080/~/id-in/cse-in/gatewayAgent/cmd/la')
         
         
 # register_AE('CgatewayAgentMN', 'gatewayAgentMN', f'http://localhost:8081/~/id-mn1/cse-mn1')
@@ -116,8 +140,7 @@ while True: #stop when no notification, don't keep retrieving
 # Unregister the AE and stop the notification server
 # unregister_AE(originator, application_name)
 # stop_notification_receiver()
-
-    atexit.register(lambda:unregister_AE(originator, application_name))
+    atexit.register(lambda:cleanup(docker_name, mn_id, originator+'MN', application_name+'MN'))
     atexit.register(lambda:stop_notification_receiver())
 # atexit.register(lambda:stop_CSE())
 

@@ -74,7 +74,7 @@ def retrieve_contentinstance(originator:str, path:str) -> dict:
 
 
     
-def delete_contentinstance(url:str)->bool:
+def delete_contentinstance(originator:str, url:str)->bool:
     h = {
             "X-M2M-Origin": originator,
             "X-M2M-RI": randomID(),

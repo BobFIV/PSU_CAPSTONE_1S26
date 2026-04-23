@@ -1,15 +1,20 @@
 ## Start IN-CSE
 ~~~sh
-docker run -it -p 8080:8080 -e hostIPAddress=localhost -v ./acme_in:/data --name acme-in ankraft/acme-onem2m-cse:latest
+docker run -it -p 8080:8080 -e hostIPAddress=acme-in -v ./acme_in:/data --name acme-in --network acme-net ankraft/acme-onem2m-cse:latest
 ~~~
-## Start MN1-CSE
+## Start GatewayAgent1
 ~~~sh
-docker run -it -p 8081:8080 -e hostIPAddress=localhost -v ./acme_mn1:/data --name acme-mn1 ankraft/acme-onem2m-cse:latest
+docker run -it --name gateway-app1 --network acme-net --env-file .env.rpi1 -p 9000:9000 -v /var/run/docker.sock:/var/run/docker.sock -v /Users/kimminseo/Documents/CMPSC483W/PSU_CAPSTONE_1S26/cse-data:/shared-cse gateway-app:latest
 ~~~
 
-## Start MN2-CSE
+## Start GatewayAgent2
 ~~~sh
-docker run -it -p 8082:8080 -e hostIPAddress=localhost -v ./acme_mn2:/data --name acme-mn2 ankraft/acme-onem2m-cse:latest
+docker run -it --name gateway-app2 --network acme-net --env-file .env.rpi2 -p 9001:9000 -v /var/run/docker.sock:/var/run/docker.sock -v /Users/kimminseo/Documents/CMPSC483W/PSU_CAPSTONE_1S26/cse-data:/shared-cse gateway-app:latest
+~~~
+
+## Build Image
+~~~sh
+docker build -t gateway-app:latest .
 ~~~
 
 ## Run 
