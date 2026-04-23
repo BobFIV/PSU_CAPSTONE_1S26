@@ -17,11 +17,29 @@ def api_status(request):
 
 @require_http_methods(["GET"])
 def api_topology(request):
-    services.sync_topology_from_cse()   # <-- pull live data first
+    services.sync_topology_from_cse()
     return JsonResponse({
         "success": True,
         "topology": services.get_topology_snapshot(),
     })
+
+
+@require_http_methods(["GET"])
+def api_node_info(request):
+    """
+    GET /api/node/info/?type=<node_type>&name=<resource_name>
+    Queries the IN-CSE directly for the resource properties.
+    node_type: 'in', 'mn', 'ae'
+    name: resource name (e.g. 'gatewayAgent', 'cse-mn1')
+    """
+    node_type = request.GET.get("type", "")
+    name = request.GET.get("name", "")
+
+    if not node_type:
+        return JsonResponse({"success": False, "message": "Missing type parameter"})
+
+    result = services.query_node_properties(node_type, name)
+    return JsonResponse(result)
 
 
 @require_http_methods(["POST"])
@@ -48,8 +66,9 @@ def api_gateway_command(request):
     parent_node_id = body.get("parentNodeId", "")
     parent_cse_id = body.get("cseID", "")
     deploy_type = body.get("deployType", "Deploy AE")
+    host_name = body.get("hostName", "")
 
-    ok, status_code, cse_response = services.send_command_to_gateway(content)
+    ok, status_code, cse_response = services.send_command_to_gateway(content, host_name)
 
     out = {
         "success": ok,
@@ -78,27 +97,20 @@ def api_gateway_command(request):
 @require_http_methods(["POST"])
 @csrf_exempt
 def api_gateway_data(request):
-    """
-    POST /api/gateway/data/
-    body:
-    {
-      "cseName": "acme-mn1",
-      "localPort": "8081",
-      "cseID": "/id-mn1",
-      "deployType": "Deploy CSE ACME"
-    }
-    """
     try:
         body = json.loads(request.body) if request.body else {}
         cse_name = body.get("cseName", "")
         local_port = body.get("localPort", "")
         cse_id = body.get("cseID", "")
         deploy_type = body.get("deployType", "Deploy CSE")
+        docker_name = body.get("dockerName", "")
+        host_name = body.get("hostName", "")  # <-- add this
 
         fields = {
             "cseName": cse_name,
             "localPort": local_port,
             "cseID": cse_id,
+            "dockerName": docker_name,
         }
         lines = [
             f"{key}={value.strip()}"
@@ -117,8 +129,8 @@ def api_gateway_data(request):
             "message": "Invalid JSON body"
         })
 
-    ok_data, status_data, cse_data = services.send_data_to_gateway(content)
-    ok_cmd, status_cmd, cse_cmd = services.send_command_to_gateway("execute")
+    ok_data, status_data, cse_data = services.send_data_to_gateway(content, host_name)      # <-- pass host_name
+    ok_cmd, status_cmd, cse_cmd = services.send_command_to_gateway("execute", host_name)    # <-- pass host_name
 
     success = ok_data and ok_cmd
     cse_record = None
@@ -131,6 +143,7 @@ def api_gateway_data(request):
             port=local_port,
             deploy_type=deploy_type,
             source="api",
+            host_name=host_name,
         )
     elif ok_data and not ok_cmd:
         message = "Data sent; failed to create execute in cmd"
@@ -154,3 +167,18 @@ def api_gateway_data(request):
         out["cmd_cse_response"] = (cse_cmd or "")[:500]
 
     return JsonResponse(out)
+
+@require_http_methods(["POST"])
+@csrf_exempt
+def api_provision_host(request):
+    try:
+        body = json.loads(request.body) if request.body else {}
+        name = body.get("name", "")
+        success = services.initialize_provision_host(name)
+        if success:
+            return JsonResponse({"success": True, "name": name})
+        else:
+            return JsonResponse({"success": False})
+    except Exception as e:
+        print(e)
+        return JsonResponse({"success": False})

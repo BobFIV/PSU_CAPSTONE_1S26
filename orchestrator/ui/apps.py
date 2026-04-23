@@ -6,8 +6,10 @@ class UiConfig(AppConfig):
     name = "ui"
 
     def ready(self):
-        #prevent double run in dev server
+        print("DEBUG: apps.py ready() called")
+
         if os.environ.get('RUN_MAIN') != "true":
+            print("DEBUG: blocked by RUN_MAIN guard, RUN_MAIN =", os.environ.get('RUN_MAIN'))
             return
         
         from . import services
@@ -15,7 +17,7 @@ class UiConfig(AppConfig):
 
         try:
             services.initialize_AE_only(application_name)
-            status = services.final_registration_status  # read after call so updated value is used
+            status = services.final_registration_status
             print("IN-CSE response:", status)
         except Exception as e:
             print("Error registering container:", e)

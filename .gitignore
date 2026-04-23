@@ -12,3 +12,6 @@ __pycache__/
 **/acme-mn*/
 .env
 .env.*
+
+__pycache__/
+*.pyc
