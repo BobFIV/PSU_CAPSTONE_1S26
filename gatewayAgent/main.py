@@ -44,8 +44,8 @@ for i in range(20):
     print("Trying registering AE")
     try:
         node_url=f"{node_base_url}/{node_name}"
-        if retrieve_node('CAdmin', node_url):
-            if register_AE(originator, application_name, cse_url) == False:
+        if retrieve_node('CAdmin', f'{cse_url}/{node_name}'):
+            if register_AE(originator, application_name, cse_url, node_url) == False:
                 stop_notification_receiver()
                 exit()
             break
