@@ -26,7 +26,7 @@ def create_acp(originator: str, path: str, rn: str, allowed_originator: str) -> 
             'rn': rn,
             'pv': {
                 'acr': [{
-                    'acor': [allowed_originator],
+                    'acor': ["all"],
                     'acop': 63
                 }]
             },
@@ -44,6 +44,7 @@ def create_acp(originator: str, path: str, rn: str, allowed_originator: str) -> 
     if response.status_code == 201:
         print('ACP created successfully')
         try:
+            print(response.json())
             return response.json()['m2m:acp']['ri']
         except KeyError:
             print('ACP created but no RI found in response')
@@ -149,7 +150,7 @@ def acp_shutdown(originator: str, path: str, acp_id: str) -> bool:
     # ---------------------------------------------------
     # STEP 4: Delete ACP resource itself
     # ---------------------------------------------------
-    delete_url = f"{path}/orchestratorACP"  # or store ACP RI mapping properly
+    delete_url = f"{path}/ACPOrchestrator"  # or store ACP RI mapping properly
 
     del_resp = requests.delete(delete_url, headers=headers)
 

@@ -16,7 +16,7 @@ from .notificationReceiver import run_notification_receiver, stop_notification_r
 
 from .node_flexnode_for_provision_host import create_node, create_flex_container
 
-from acp_update import create_acp, attach_acp, acp_shutdown
+from .acp_update import create_acp, attach_acp, acp_shutdown
 
 registration_status = "Not connected to IN-CSE"
 final_registration_status = "Not Connected to IN-CSE"
@@ -271,13 +271,13 @@ def initialize_AE_only(application_name):
         print(registration_status)
         final_registration_status = "Orchestrator AE successfully created"
 
-        acp_id = create_acp("CAdmin", cse_url, "OrchestratorACP", originator)
+        acp_id = create_acp(originator, cse_url, "ACPOrchestrator", originator)
         if not acp_id:
             print("Access policy not created")
             return False
-        if not attach_acp('CAdmin',cse_url,acp_id):
-            print("Access control policy not attached")
-            return False
+        #if not attach_acp(originator,cse_url,acp_id):
+            #print("Access control policy not attached")
+            #return False
         subscribe_to_cse_base()
 
         # Register cleanup for all exit scenarios
@@ -616,7 +616,7 @@ def _cleanup_on_exit():
     
     # Delete subscription
     delete_subscription(
-        originator_gateway_control,
+        originator,
         cse_url + '/orchestratorSubToCSEBase'
     )
 
@@ -639,15 +639,15 @@ def _cleanup_on_exit():
     # Delete provisioned node if one exists
     for host_name in provisioned_host_names:
         delete_node(
-            originator_gateway_control,
+            originator,
             cse_url + '/' + host_name
         )
 
     # Unregister orchestrator AE
     unregister_AE(application_name, originator_ae_create)
 
-    if not acp_shutdown(originator_gateway_control, cse_url, acp_id):
-        print("Unsuccessful ACP shutdown")
+    #if not acp_shutdown(originator_gateway_control, cse_url, acp_id):
+        #print("Unsuccessful ACP shutdown")
 
     stop_notification_receiver()
     print("Cleanup complete.")
