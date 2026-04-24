@@ -16,9 +16,12 @@ from .notificationReceiver import run_notification_receiver, stop_notification_r
 
 from .node_flexnode_for_provision_host import create_node, create_flex_container
 
+from acp_update import create_acp, attach_acp, acp_shutdown
+
 registration_status = "Not connected to IN-CSE"
 final_registration_status = "Not Connected to IN-CSE"
 provisioned_host_names = []
+acp_id = ""
 
 
 # -----------------------------
@@ -241,7 +244,7 @@ def subscribe_to_cse_base():
         run_notification_receiver()
         atexit.register(stop_notification_receiver)
         ok = create_subscription(
-            originator_gateway_control,
+            originator,
             cse_url,
             "orchestratorSubToCSEBase",
             notificationURIs,
@@ -268,6 +271,13 @@ def initialize_AE_only(application_name):
         print(registration_status)
         final_registration_status = "Orchestrator AE successfully created"
 
+        acp_id = create_acp("CAdmin", cse_url, "OrchestratorACP", originator)
+        if not acp_id:
+            print("Access policy not created")
+            return False
+        if not attach_acp('CAdmin',cse_url,acp_id):
+            print("Access control policy not attached")
+            return False
         subscribe_to_cse_base()
 
         # Register cleanup for all exit scenarios
@@ -290,7 +300,7 @@ def send_command_to_gateway(content: str, host_name: str = "") -> tuple:
     # Use selected host if valid, otherwise fall back to latest
     target = host_name.strip() if host_name and host_name.strip() in provisioned_host_names else provisioned_host_names[-1]
     path = cse_url + '/' + target + '/resources/gateway_cmd'
-    return create_contentInstance_with_response(originator_gateway_control, path, content)
+    return create_contentInstance_with_response(originator, path, content)
 
 
 def send_data_to_gateway(content: str, host_name: str = "") -> tuple:
@@ -300,7 +310,7 @@ def send_data_to_gateway(content: str, host_name: str = "") -> tuple:
     
     target = host_name.strip() if host_name and host_name.strip() in provisioned_host_names else provisioned_host_names[-1]
     path = cse_url + '/' + target + '/resources/gateway_data'
-    return create_contentInstance_with_response(originator_gateway_control, path, content)
+    return create_contentInstance_with_response(originator, path, content)
 
 def discover_resources_from_cse() -> dict:
     """
@@ -310,7 +320,7 @@ def discover_resources_from_cse() -> dict:
     import requests as _requests
 
     headers_base = {
-        'X-M2M-Origin': originator_gateway_control,
+        'X-M2M-Origin': originator,
         'X-M2M-RVI': '4',
         'Accept': 'application/json',
     }
@@ -407,7 +417,7 @@ def query_node_properties(node_type: str, name: str) -> dict:
     import requests as _requests
 
     headers = {
-        'X-M2M-Origin': originator_gateway_control,
+        'X-M2M-Origin': originator,
         'X-M2M-RI': randomID(),
         'X-M2M-RVI': '4',
         'Accept': 'application/json',
@@ -496,7 +506,7 @@ def initialize_provision_host(name: str) -> bool:
     global provisioned_host_names 
     try:
         node_rn = name.strip() if name and name.strip() else "gw-node-01"
-        created = create_node(originator_gateway_control, cse_url, node_rn)
+        created = create_node(originator, cse_url, node_rn)
         if created:
             print("node created Successfully")
             provisioned_host_names.append(node_rn)   # store for other functions to use
@@ -517,12 +527,12 @@ def initialize_provision_host(name: str) -> bool:
             
             upsert_host_topology(node_rn) 
             node_path = cse_url + '/' + node_rn
-            flex_node_created = create_flex_container(originator_gateway_control, node_path, "resources")
+            flex_node_created = create_flex_container(originator, node_path, "resources")
             if flex_node_created:
                 print("Node / Flexnode created")
                 gateway_container_path = node_path + "/" + "resources"
-                cmd_container_created = create_container(originator_gateway_control,gateway_container_path,"gateway_cmd")
-                data_container_created = create_container(originator_gateway_control,gateway_container_path,"gateway_data")
+                cmd_container_created = create_container(originator,gateway_container_path,"gateway_cmd")
+                data_container_created = create_container(originator,gateway_container_path,"gateway_data")
                 if cmd_container_created and data_container_created:
                     print("node struture created successfully")
                     return True
@@ -635,6 +645,9 @@ def _cleanup_on_exit():
 
     # Unregister orchestrator AE
     unregister_AE(application_name, originator_ae_create)
+
+    if not acp_shutdown(originator_gateway_control, cse_url, acp_id):
+        print("Unsuccessful ACP shutdown")
 
     stop_notification_receiver()
     print("Cleanup complete.")
