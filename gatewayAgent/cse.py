@@ -315,7 +315,6 @@ def update_config(data):
                     "consoleTheme = dark\n\n"+
                     "[cse.registrar]\n"+
                     "address = http://acme-in:8080\n"+
-                    "root = /~/id-in\n"
                     "cseID = /id-in\n"+
                     "resourceName = cse-in\n"+
                     "serialization = json\n\n"+
