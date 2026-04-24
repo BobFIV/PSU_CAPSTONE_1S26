@@ -121,6 +121,9 @@ def upsert_cse_topology(name: str = "", cse_id: str = "", port: str = "", deploy
 
         for index, existing in enumerate(_topology_state["cses"]):
             if existing["nodeId"] == node_id:
+                # Preserve existing hostNodeId if discovery is overwriting with no explicit host
+                if source == "cse-discovery" and not host_name and existing.get("hostNodeId"):
+                    record["hostNodeId"] = existing["hostNodeId"]  # <-- key fix
                 _topology_state["cses"][index] = {**existing, **record}
                 _touch_topology()
                 return copy.deepcopy(_topology_state["cses"][index])
