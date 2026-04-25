@@ -262,17 +262,15 @@
   
       
   
-      // Host -> MN-CSE
-      if (cse.hostNodeId) {
-        elements.push({
-          data: {
-            id: `host-link-${cse.nodeId}`,
-            source: cse.hostNodeId,
-            target: cse.nodeId,
-            type: "registration",
-          },
-        });
-      }
+      // IN-CSE -> MN-CSE
+      elements.push({
+        data: {
+          id: `reg-${cse.nodeId}`,
+          source: "in-cse",
+          target: cse.nodeId,
+          type: "registration",
+        },
+      });
     });
   
     // AE nodes
