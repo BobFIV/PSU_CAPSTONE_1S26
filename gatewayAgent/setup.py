@@ -2,7 +2,7 @@ import random, string
 from dataclasses import dataclass
 from queue import Queue
 import os
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 from config import GatewayConfig
 
 import docker
@@ -24,7 +24,7 @@ def randomID() -> str:
     """
     return ''.join(random.choices(string.ascii_uppercase + string.digits + string.ascii_lowercase, k = 10))
 
-load_dotenv()
+# load_dotenv()
 cfg=GatewayConfig.from_env()
 client = _build_docker_client(cfg)
 

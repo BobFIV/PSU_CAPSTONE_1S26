@@ -68,6 +68,7 @@ def remove_CSE(name: str) -> None:
     try:
         c = client.containers.get(name)
         c.remove(force=True)
+        print("CSE removed Successfully")
     except NotFound:
         pass
 
@@ -423,18 +424,5 @@ def delete_config(dirname):
 #     print('Error creating CSR: ' + str(response.status_code))
 #     return False
     
-def cleanup(docker_name, mn_id, mn_originator, mn_AEname):
-    unregister_AE(mn_originator, mn_AEname)
-    url=f"{cse_url}/{mn_id}"
-    headers={
-        "X-M2M-Origin": "CAdmin",
-        "X-M2M-RI": randomID(),
-        "X-M2M-RVI": "4"
-    }
-    r = requests.delete(url, headers=headers, timeout=10)
-    if r.status_code in (200,202,204):
-        print("CSR Successfully deleted")
-    remove_CSE(docker_name)
-    unregister_AE(originator, application_name)
 
 

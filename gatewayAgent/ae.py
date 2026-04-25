@@ -51,7 +51,7 @@ def register_AE(originator:str, application_name: str, url:str, node_url:str=Non
 
 
 # Unregister AE
-def unregister_AE(originator, application_name:str) -> bool:
+def unregister_AE(originator, application_name:str, url) -> bool:
     """ Unregister an Application Entity
 
         Args:
@@ -69,7 +69,7 @@ def unregister_AE(originator, application_name:str) -> bool:
     }
 
     # Perform the http request to delete the <AE> resource
-    response = requests.delete(cse_url + '/' + application_name, headers=headers)
+    response = requests.delete(url, headers=headers)
 
     # Check the response
     if response.status_code == 200:
