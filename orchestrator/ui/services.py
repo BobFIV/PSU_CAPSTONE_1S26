@@ -15,6 +15,7 @@ from .contentInstance import create_contentInstance, create_contentInstance_with
 from .notificationReceiver import run_notification_receiver, stop_notification_receiver
 
 from .node_flexnode_for_provision_host import create_node, create_flex_container
+from .gateway_package import provision_wireguard_package
 
 registration_status = "Not connected to IN-CSE"
 final_registration_status = "Not Connected to IN-CSE"
@@ -512,6 +513,13 @@ def initialize_provision_host(name: str) -> bool:
             new_dir = BASE_DIR / name
             new_dir.mkdir(exist_ok=True)
 
+            wireguard_dir = new_dir / "wireguard"
+            gateway_agent_dir = new_dir / "gateway-agent"
+            wireguard_dir.mkdir(exist_ok=True)
+            gateway_agent_dir.mkdir(exist_ok=True)
+
+            provision_wireguard_package(node_rn)
+
             file_path = new_dir / "config.txt"
 
             if not file_path.exists():
@@ -646,4 +654,3 @@ def _cleanup_on_exit():
 def _signal_handler(sig, frame):
     _cleanup_on_exit()
     sys.exit(0)
-
