@@ -1,4 +1,5 @@
 import random, string
+import os
 
 # Setup variables
 cse_url = 'http://localhost:8080/~/id-in/cse-in'                  # The url of the CSE
@@ -17,6 +18,15 @@ gateway_data_path = cse_url + '/' + gateway_ae_name + '/data'
 container_name = 'myContainer'                              # The name of the container
 container_path = application_path + '/' + container_name    # The path of the container
 subscription_name = 'mySubscription'                        # The name of the subscription
+
+# WireGuard startup package defaults
+wg_interface = os.environ.get("WG_INTERFACE", "wg0")
+wg_server_public_key = os.environ.get("WG_SERVER_PUBLIC_KEY", "<ORCHESTRATOR_PUBLIC_KEY>")
+wg_server_endpoint = os.environ.get("WG_SERVER_ENDPOINT", "10.10.0.1:51820")
+wg_allowed_ips = os.environ.get("WG_ALLOWED_IPS", "0.0.0.0/0")
+wg_persistent_keepalive = os.environ.get("WG_PERSISTENT_KEEPALIVE", "25")
+wg_client_address_prefix = os.environ.get("WG_CLIENT_ADDRESS_PREFIX", "10.10.0")
+wg_client_address_mask = os.environ.get("WG_CLIENT_ADDRESS_MASK", "24")
 
 
 def randomID() -> str:
