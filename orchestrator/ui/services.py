@@ -137,6 +137,15 @@ def upsert_cse_topology(name: str = "", cse_id: str = "", port: str = "", deploy
                 _topology_state["cses"][index] = {**existing, **record}
                 _touch_topology()
                 return copy.deepcopy(_topology_state["cses"][index])
+        
+        # Check max 1 MN-CSE per node before creating a new one
+        if not any(
+            (final_docker_name and existing.get("dockerName") == final_docker_name)
+            for existing in _topology_state["cses"]
+        ):
+            # This is a new CSE, not an update — check if host is already occupied
+            if host_node_id and _host_has_cse_locked(host_node_id, exclude_docker_name=final_docker_name):
+                return {"error": "Host already has an MN-CSE. Only one MN-CSE per host is allowed."}
 
         _topology_state["cses"].append(record)
         _touch_topology()
@@ -677,3 +686,25 @@ def _cleanup_on_exit():
 def _signal_handler(sig, frame):
     _cleanup_on_exit()
     sys.exit(0)
+
+def _host_has_cse_locked(host_node_id: str, exclude_docker_name: str = "") -> bool:
+    """Returns True if the host already has an MN-CSE assigned to it."""
+    for cse in _topology_state["cses"]:
+        if cse.get("hostNodeId") == host_node_id:
+            # Allow if it's the same docker name (update case)
+            if exclude_docker_name and cse.get("dockerName") == exclude_docker_name:
+                continue
+            return True
+    return False
+
+def check_host_availability(host_name: str, docker_name: str) -> str:
+    """Returns an error message string if the host is occupied, empty string if ok."""
+    with _topology_lock:
+        if host_name and host_name.strip():
+            host_node_id = f"host-{_slugify(host_name.strip())}"
+        else:
+            host_node_id = _latest_host_node_id_locked()
+        
+        if host_node_id and _host_has_cse_locked(host_node_id, exclude_docker_name=(docker_name or "").strip()):
+            return "An mn-cse is already deployed on this node so update that mn-cse using the same dockername"
+        return ""

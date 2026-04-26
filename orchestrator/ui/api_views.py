@@ -129,6 +129,12 @@ def api_gateway_data(request):
             "message": "Invalid JSON body"
         })
 
+    pre_check = services.check_host_availability(host_name, docker_name)
+    if pre_check:
+        return JsonResponse({
+            "success": False,
+            "message": pre_check,
+        })
     ok_data, status_data, cse_data = services.send_data_to_gateway(content, host_name)      # <-- pass host_name
     ok_cmd, status_cmd, cse_cmd = services.send_command_to_gateway("execute", host_name)    # <-- pass host_name
 
@@ -152,6 +158,9 @@ def api_gateway_data(request):
         message = "Execute sent; failed to create data contentInstance"
     else:
         message = "Failed to create contentInstances (data and cmd)"
+    
+
+    
 
     out = {
         "success": success,
