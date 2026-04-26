@@ -137,6 +137,15 @@ def upsert_cse_topology(name: str = "", cse_id: str = "", port: str = "", deploy
                 _topology_state["cses"][index] = {**existing, **record}
                 _touch_topology()
                 return copy.deepcopy(_topology_state["cses"][index])
+        
+        # Check max 1 MN-CSE per node before creating a new one
+        if not any(
+            (final_docker_name and existing.get("dockerName") == final_docker_name)
+            for existing in _topology_state["cses"]
+        ):
+            # This is a new CSE, not an update — check if host is already occupied
+            if host_node_id and _host_has_cse_locked(host_node_id, exclude_docker_name=final_docker_name):
+                return {"error": "Host already has an MN-CSE. Only one MN-CSE per host is allowed."}
 
         _topology_state["cses"].append(record)
         _touch_topology()
@@ -530,23 +539,72 @@ def initialize_provision_host(name: str) -> bool:
 
             provision_wireguard_package(node_rn)
 
-            file_path = new_dir / f".env.rpi{env_file_number}"
+            # Derive node number from node name (gw-node-01 -> 1, gw-node-02 -> 2).
+            # This makes the env file deterministic per node, independent of
+            # provisioning order and the global env_file_number counter.
+            import re, os
+            m = re.search(r'(\d+)$', node_rn)
+            node_num = int(m.group(1)) if m else env_file_number
 
-            if not file_path.exists():
-                with open(file_path, "w") as f:
-                    f.write(f"NODE_NAME={node_rn}\n")
-                    f.write(f"IN_CSE_BASE_URL=http://acme-in:8080/~/id-in/cse-in\n")
-                    f.write(f"ORIGINATOR_ID=CgatewayAgent{env_file_number}\n")
-                    f.write(f"CALLBACK_URL=http://gateway-app{env_file_number}:9000\n")
-                    f.write(f"APPLICATION_NAME=gatewayAgent{env_file_number}\n")
-                    f.write(f"SUBSCRIPTION_NAME=gatewaySubscription{env_file_number}\n")
-                    f.write(f"IMAGE=gateway-app:latest\n")
-                    f.write(f"ACME_IMAGE=ankraft/acme-onem2m-cse:latest\n")
-                    f.write(f"LOG_LEVEL=DEBUG\n")
-                    f.write(f"HOST_CSE_BASE_DIR=/Users/kimminseo/Documents/CMPSC483W/PSU_CAPSTONE_1S26/cse-data\n")
-                    f.write(f"CONTAINER_CSE_BASE_DIR=/shared-cse\n")
-                    f.write(f"DOCKER_HOST=unix:///var/run/docker.sock\n")
-                    f.write(f"DOCKER_NET=acme-net")
+            # Read the just-generated wg0.conf to extract this Pi's WG IP
+            # (needed for CALLBACK_URL and GATEWAY_HOST_ADDR so cross-machine
+            # works — the Pi must be reachable at its WG IP, not at a docker
+            # bridge hostname).
+            wg_conf_path = wireguard_dir / "wg0.conf"
+            pi_wg_addr = None
+            if wg_conf_path.exists():
+                for line in wg_conf_path.read_text().splitlines():
+                    s = line.strip()
+                    if s.startswith("Address"):
+                        # "Address = 10.0.0.2/24" -> "10.0.0.2"
+                        try:
+                            pi_wg_addr = s.split("=", 1)[1].strip().split("/")[0]
+                        except Exception:
+                            pass
+                        break
+
+            # Cross-machine defaults; override via env vars if needed.
+            in_cse_url = os.environ.get(
+                "ORCHESTRATOR_IN_CSE_URL",
+                "http://10.0.0.1:8080/~/id-in/cse-in")
+            gateway_image = os.environ.get(
+                "ORCHESTRATOR_GATEWAY_IMAGE",
+                "10.0.0.1:5000/gateway-agent:latest")
+            acme_image = os.environ.get(
+                "ORCHESTRATOR_ACME_IMAGE",
+                "10.0.0.1:5000/acme-onem2m-cse:arm64")
+            host_cse_dir = os.environ.get(
+                "ORCHESTRATOR_HOST_CSE_BASE_DIR",
+                "/opt/gateway/cse-data")
+            container_cse_dir = os.environ.get(
+                "ORCHESTRATOR_CONTAINER_CSE_BASE_DIR",
+                "/shared-cse")
+            docker_net = os.environ.get(
+                "ORCHESTRATOR_DOCKER_NET",
+                "acme-net")
+
+            callback_url = (f"http://{pi_wg_addr}:9000"
+                            if pi_wg_addr
+                            else f"http://gateway-app{node_num}:9000")
+            gateway_host_addr = pi_wg_addr if pi_wg_addr else "10.0.0.1"
+
+            file_path = new_dir / f".env.rpi{node_num}"
+
+            with open(file_path, "w") as f:
+                f.write(f"NODE_NAME={node_rn}\n")
+                f.write(f"IN_CSE_BASE_URL={in_cse_url}\n")
+                f.write(f"ORIGINATOR_ID=CgatewayAgent{node_num}\n")
+                f.write(f"CALLBACK_URL={callback_url}\n")
+                f.write(f"APPLICATION_NAME=gatewayAgent{node_num}\n")
+                f.write(f"SUBSCRIPTION_NAME=gatewaySubscription{node_num}\n")
+                f.write(f"IMAGE={gateway_image}\n")
+                f.write(f"ACME_IMAGE={acme_image}\n")
+                f.write(f"GATEWAY_HOST_ADDR={gateway_host_addr}\n")
+                f.write(f"LOG_LEVEL=DEBUG\n")
+                f.write(f"HOST_CSE_BASE_DIR={host_cse_dir}\n")
+                f.write(f"CONTAINER_CSE_BASE_DIR={container_cse_dir}\n")
+                f.write(f"DOCKER_HOST=unix:///var/run/docker.sock\n")
+                f.write(f"DOCKER_NET={docker_net}\n")
             env_file_number += 1
             
             upsert_host_topology(node_rn) 
@@ -677,3 +735,25 @@ def _cleanup_on_exit():
 def _signal_handler(sig, frame):
     _cleanup_on_exit()
     sys.exit(0)
+
+def _host_has_cse_locked(host_node_id: str, exclude_docker_name: str = "") -> bool:
+    """Returns True if the host already has an MN-CSE assigned to it."""
+    for cse in _topology_state["cses"]:
+        if cse.get("hostNodeId") == host_node_id:
+            # Allow if it's the same docker name (update case)
+            if exclude_docker_name and cse.get("dockerName") == exclude_docker_name:
+                continue
+            return True
+    return False
+
+def check_host_availability(host_name: str, docker_name: str) -> str:
+    """Returns an error message string if the host is occupied, empty string if ok."""
+    with _topology_lock:
+        if host_name and host_name.strip():
+            host_node_id = f"host-{_slugify(host_name.strip())}"
+        else:
+            host_node_id = _latest_host_node_id_locked()
+        
+        if host_node_id and _host_has_cse_locked(host_node_id, exclude_docker_name=(docker_name or "").strip()):
+            return "An mn-cse is already deployed on this node so update that mn-cse using the same dockername"
+        return ""

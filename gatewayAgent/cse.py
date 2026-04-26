@@ -78,7 +78,7 @@ def create_CSE(name: str, loport: str, port: str, network_name: str | None = Non
     except docker.errors.ImageNotFound:
         client.images.pull(acme_image)
     
-    advertised_host=name if network_name else "host.docker.internal"
+    advertised_host=name if network_name else gateway_host_addr
     kwargs = {
         "image": acme_image,
         "name": name,

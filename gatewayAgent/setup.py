@@ -40,6 +40,7 @@ host_cse_base=cfg.host_cse_base_dir
 cnt_cse_base=cfg.cnt_cse_base_dir
 docker_host=cfg.docker_host
 docker_net=cfg.docker_net
+gateway_host_addr=cfg.gateway_host_addr
 
 application_path = cse_url + "/" + application_name
 # parent=os.path.dirname(__file__)
