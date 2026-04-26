@@ -9,33 +9,27 @@ from notificationReceiver import stop_notification_receiver
 import time
 
 
-def cleanup(docker_name, mn_id, mn_originator, mn_AEname, mn_url):
-    ok=unregister_AE(mn_originator, mn_AEname, f'{mn_url}/{mn_AEname}')
-    csr_mn_url=f"{mn_url}/id-in" #hard coded
+def remove_CSR(url):
     headers={
         "X-M2M-Origin": "CAdmin",
         "X-M2M-RI": randomID(),
         "X-M2M-RVI": "4"
     }
-    r = requests.delete(csr_mn_url, headers=headers, timeout=10)
+    r = requests.delete(url, headers=headers, timeout=10)
     if r.status_code in (200,202,204):
         print("CSR(MN-side) Successfully deleted")
     else:
         print(f"CSR(MN-side) delete failed: {r.status_code} {r.text}")
 
+
+def cleanup(docker_name, mn_id, mn_originator, mn_AEname, mn_url):
+    ok=unregister_AE(mn_originator, mn_AEname, mn_url)
+    csr_mn_url=f"{mn_url}/id-in" #hard coded
     csr_in_url=f"{cse_url}/{mn_id}"
-    headers={
-        "X-M2M-Origin": "CAdmin",
-        "X-M2M-RI": randomID(),
-        "X-M2M-RVI": "4"
-    }
-    r = requests.delete(csr_in_url, headers=headers, timeout=10)
-    if r.status_code in (200,202,204):
-        print("CSR(IN-side) Successfully deleted")
-    else:
-        print(f"CSR(IN-side) delete failed: {r.status_code} {r.text}")
+    remove_CSR(csr_mn_url)
+    remove_CSR(csr_in_url)
     
-    unregister_AE(originator, application_name, cse_url + '/' + application_name)
+    unregister_AE(originator, application_name, cse_url)
     if ok:
         time.sleep(2)
         remove_CSE(docker_name)

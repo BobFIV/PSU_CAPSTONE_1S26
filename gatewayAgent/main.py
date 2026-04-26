@@ -62,7 +62,7 @@ for i in range(200):
 
 # Create a <subscription> resource under the <container> resource
 if create_subscription('CAdmin', f'{cse_url}/{node_name}/resources/gateway_cmd', subscription_name, notificationURIs) == False:
-    unregister_AE(originator, application_name, cse_url + '/' + application_name)
+    unregister_AE(originator, application_name, cse_url)
     stop_notification_receiver()
     exit()
 

@@ -112,8 +112,11 @@ def start_CSE(id: str, name: str, mn_name:str, loport: str, port: str, url, upda
             # # if not, update it with safetycheck
             # # so anything sent here is safe. & add update: t/f field-> if updated, need to remove and create cse. if not, just restart
             if update or loport != old_port: # not exactly match
-                remove_CSE(name)
-                create_CSE(name, loport, port, network_name=network_name)
+                ok=unregister_AE(originator+'MN', application_name+'MN', url)
+                if ok:
+                    time.sleep(2)
+                    remove_CSE(name)
+                    create_CSE(name, loport, port, network_name=network_name)
 
 
             elif not is_running_CSE(name): #name, port match

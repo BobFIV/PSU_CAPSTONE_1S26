@@ -69,7 +69,7 @@ def unregister_AE(originator, application_name:str, url) -> bool:
     }
 
     # Perform the http request to delete the <AE> resource
-    response = requests.delete(url, headers=headers)
+    response = requests.delete(f'{url}/{application_name}', headers=headers)
 
     # Check the response
     if response.status_code == 200:
