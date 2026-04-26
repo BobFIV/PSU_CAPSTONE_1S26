@@ -20,6 +20,7 @@ from .gateway_package import provision_wireguard_package
 registration_status = "Not connected to IN-CSE"
 final_registration_status = "Not Connected to IN-CSE"
 provisioned_host_names = []
+env_file_number = 1
 
 
 # -----------------------------
@@ -506,6 +507,7 @@ def query_node_properties(node_type: str, name: str) -> dict:
     
 def initialize_provision_host(name: str) -> bool:
     global provisioned_host_names 
+    global env_file_number
     try:
         node_rn = name.strip() if name and name.strip() else "gw-node-01"
         created = create_node(originator_gateway_control, cse_url, node_rn)
@@ -528,11 +530,24 @@ def initialize_provision_host(name: str) -> bool:
 
             provision_wireguard_package(node_rn)
 
-            file_path = new_dir / "config.txt"
+            file_path = new_dir / f".env.rpi{env_file_number}"
 
             if not file_path.exists():
                 with open(file_path, "w") as f:
-                    f.write(f"node_name={node_rn}\n")
+                    f.write(f"NODE_NAME={node_rn}\n")
+                    f.write(f"IN_CSE_BASE_URL=http://acme-in:8080/~/id-in/cse-in\n")
+                    f.write(f"ORIGINATOR_ID=CgatewayAgent{env_file_number}\n")
+                    f.write(f"CALLBACK_URL=http://gateway-app{env_file_number}:9000\n")
+                    f.write(f"APPLICATION_NAME=gatewayAgent{env_file_number}\n")
+                    f.write(f"SUBSCRIPTION_NAME=gatewaySubscription{env_file_number}\n")
+                    f.write(f"IMAGE=gateway-app:latest\n")
+                    f.write(f"ACME_IMAGE=ankraft/acme-onem2m-cse:latest\n")
+                    f.write(f"LOG_LEVEL=DEBUG\n")
+                    f.write(f"HOST_CSE_BASE_DIR=/Users/kimminseo/Documents/CMPSC483W/PSU_CAPSTONE_1S26/cse-data\n")
+                    f.write(f"CONTAINER_CSE_BASE_DIR=/shared-cse\n")
+                    f.write(f"DOCKER_HOST=unix:///var/run/docker.sock\n")
+                    f.write(f"DOCKER_NET=acme-net")
+            env_file_number += 1
             
             upsert_host_topology(node_rn) 
             node_path = cse_url + '/' + node_rn
@@ -636,7 +651,7 @@ def _cleanup_on_exit():
         if (
             item.is_dir()
             and item.name.startswith("NodeName_")
-            and (item / "config.txt").exists()
+            and any(item.glob(".env.rpi*"))
         ):
             try:
                 shutil.rmtree(item)
