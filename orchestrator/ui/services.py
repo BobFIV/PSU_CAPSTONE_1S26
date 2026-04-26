@@ -526,7 +526,7 @@ def initialize_provision_host(name: str) -> bool:
 
             if not file_path.exists():
                 with open(file_path, "w") as f:
-                    f.write(f"node_name={node_rn}\n")
+                    f.write(f"NODE_NAME={node_rn}\n")
                     f.write(f"IN_CSE_BASE_URL=http://acme-in:8080/~/id-in/cse-in\n")
                     f.write(f"ORIGINATOR_ID=CgatewayAgent{env_file_number}\n")
                     f.write(f"CALLBACK_URL=http://gateway-app{env_file_number}:9000\n")
