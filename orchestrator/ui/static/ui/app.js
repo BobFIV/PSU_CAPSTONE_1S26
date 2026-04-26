@@ -159,7 +159,12 @@
         },
         {
           selector: 'node[type = "mn"]',
-          style: { "background-color": "#2ca24d", "color": "#ffffff" },
+          style: { 
+            "background-color": "#2ca24d", 
+            "color": "#ffffff",
+            "width": 180,
+            "height": 110,
+          },
         },
         {
           selector: 'node[type = "ae"]',
@@ -246,17 +251,23 @@
       const labelParts = [cse.name || "MN-CSE"];
       if (cse.cseID) labelParts.push(`ID: ${cse.cseID}`);
       if (cse.port) labelParts.push(`Port: ${cse.port}`);
-  
+      if (cse.dockerName) labelParts.push(`Docker: ${cse.dockerName}`);  // <-- add this
+      if (cse.hostNodeId) {
+        const host = state.topology.hosts.find(h => h.nodeId === cse.hostNodeId);
+        if (host) labelParts.push(`Host: ${host.name}`);
+      }
+    
       elements.push({
         data: {
           id: cse.nodeId,
           label: labelParts.join("\n"),
           type: "mn",
-          resourceName: cse.name || (cse.cseID || "").replace(/^\//, ""),
+          resourceName: (cse.cseID || cse.name || "").replace(/^\//, ""),
           statusText:
             `${cse.name || "MN-CSE"}` +
             `${cse.cseID ? ` (${cse.cseID})` : ""}` +
-            `${cse.port ? ` on port ${cse.port}` : ""}`,
+            `${cse.port ? ` port ${cse.port}` : ""}` +
+            `${cse.dockerName ? ` docker: ${cse.dockerName}` : ""}`,
         },
       });
   

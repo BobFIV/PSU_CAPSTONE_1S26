@@ -144,6 +144,7 @@ def api_gateway_data(request):
             deploy_type=deploy_type,
             source="api",
             host_name=host_name,
+            docker_name=docker_name,  # <-- add this
         )
     elif ok_data and not ok_cmd:
         message = "Data sent; failed to create execute in cmd"

@@ -96,14 +96,14 @@ def make_cse_node_id(name: str = "", cse_id: str = "", port: str = "") -> str:
     return f"mn-{_slugify(base)}"
 
 
-def upsert_cse_topology(name: str = "", cse_id: str = "", port: str = "", deploy_type: str = "Deploy CSE", source: str = "api", host_name: str = ""):
+def upsert_cse_topology(name: str = "", cse_id: str = "", port: str = "", deploy_type: str = "Deploy CSE", source: str = "api", host_name: str = "", docker_name: str = ""):
     with _topology_lock:
         final_name = (name or "").strip() or _next_default_name("mn-cse", _topology_state["cses"])
         final_cse_id = (cse_id or "").strip()
         final_port = (port or "").strip()
+        final_docker_name = (docker_name or "").strip()
         node_id = make_cse_node_id(final_name, final_cse_id, final_port)
 
-        # Use explicitly selected host, fall back to latest
         if host_name and host_name.strip():
             host_node_id = f"host-{_slugify(host_name.strip())}"
         else:
@@ -114,17 +114,25 @@ def upsert_cse_topology(name: str = "", cse_id: str = "", port: str = "", deploy
             "name": final_name,
             "cseID": final_cse_id,
             "port": final_port,
+            "dockerName": final_docker_name,
             "deployType": deploy_type or "Deploy CSE",
             "hostNodeId": host_node_id,
             "source": source,
             "updatedAt": _utc_now_iso(),
         }
 
+        # Match on dockerName if provided, otherwise fall back to nodeId
         for index, existing in enumerate(_topology_state["cses"]):
-            if existing["nodeId"] == node_id:
-                # Preserve existing hostNodeId if discovery is overwriting with no explicit host
+            match = (
+                final_docker_name and existing.get("dockerName") == final_docker_name
+            ) or (
+                not final_docker_name and existing["nodeId"] == node_id
+            )
+            if match:
                 if source == "cse-discovery" and not host_name and existing.get("hostNodeId"):
-                    record["hostNodeId"] = existing["hostNodeId"]  # <-- key fix
+                    record["hostNodeId"] = existing["hostNodeId"]
+                # Preserve nodeId from existing record so diagram node doesn't change
+                record["nodeId"] = existing["nodeId"]
                 _topology_state["cses"][index] = {**existing, **record}
                 _touch_topology()
                 return copy.deepcopy(_topology_state["cses"][index])
