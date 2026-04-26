@@ -326,8 +326,8 @@ def update_config(data):
                     # "registrarCSEPort = 8080\n"+
                     # "registrarCSEID = /id-in\n"+
                     # "registrarCSEName = cse-in\n\n"+
-                    "[cse.registration]\n"+
-                    "allowedCSROriginators = /id-in\n\n"+
+                    # "[cse.registration]\n"+
+                    # "allowedCSROriginators = /id-in\n\n"+
                     "[textui]\n"+
                     "startWithTUI = false\n\n"+
                     "[cse.operation.requests]\n"+
