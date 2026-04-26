@@ -500,8 +500,7 @@
       option.textContent = host.name;
       hostSelect.appendChild(option);
     });
-    
-    // Restore previously selected value
+
     if (state.cse.hostName) hostSelect.value = state.cse.hostName;
 
     name.addEventListener("input", () => (state.cse.name = name.value));
@@ -518,16 +517,37 @@
         state.cse.deployedAction = btn.dataset.action;
         markSelected(root, state.cse.deployedAction);
 
-        const payload = {
-          cseName: (state.cse.name || "").trim(),
-          localPort: (state.cse.port || "").trim(),
-          cseID: (state.cse.cseID || "").trim(),
-          dockerName: (state.cse.dockerName || "").trim(),
-          hostName: (state.cse.hostName || "").trim(),
-          deployType: btn.textContent.trim(),
-        };
-
         if (btn.dataset.action === "deploy_cse_acme") {
+          // Validate CSE Name format
+          const cseName = (state.cse.name || "").trim();
+          const cseIdVal = (state.cse.cseID || "").trim();
+
+          if (!cseName.startsWith("cse-")) {
+            setStatus("CSE Name must start with 'cse-' (e.g. cse-mn1)");
+            return;
+          }
+
+          if (!cseIdVal.startsWith("id-")) {
+            setStatus("CSE-ID must start with 'id-' (e.g. id-mn1)");
+            return;
+          }
+
+          const cseSuffix = cseName.slice(4);
+          const idSuffix = cseIdVal.slice(3);
+          if (cseSuffix !== idSuffix) {
+            setStatus(`CSE Name and CSE-ID suffix must match (e.g. cse-mn1 and id-mn1)`);
+            return;
+          }
+
+          const payload = {
+            cseName: cseName,
+            localPort: (state.cse.port || "").trim(),
+            cseID: cseIdVal,
+            dockerName: (state.cse.dockerName || "").trim(),
+            hostName: (state.cse.hostName || "").trim(),
+            deployType: btn.textContent.trim(),
+          };
+
           setStatus("Sending MN-CSE details to Gateway...");
           const result = await sendDataToGateway(payload);
 
@@ -551,11 +571,19 @@
           return;
         }
 
+        const payload = {
+          cseName: (state.cse.name || "").trim(),
+          localPort: (state.cse.port || "").trim(),
+          cseID: (state.cse.cseID || "").trim(),
+          dockerName: (state.cse.dockerName || "").trim(),
+          hostName: (state.cse.hostName || "").trim(),
+          deployType: btn.textContent.trim(),
+        };
+
         await syncTopologyFromBackend(true);
         enableBackToTopology(`CSE step saved (${btn.textContent.trim()})`);
       });
     });
-
   }
 
   function bindAE(root) {
