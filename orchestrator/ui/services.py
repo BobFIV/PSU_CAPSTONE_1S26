@@ -530,23 +530,72 @@ def initialize_provision_host(name: str) -> bool:
 
             provision_wireguard_package(node_rn)
 
-            file_path = new_dir / f".env.rpi{env_file_number}"
+            # Derive node number from node name (gw-node-01 -> 1, gw-node-02 -> 2).
+            # This makes the env file deterministic per node, independent of
+            # provisioning order and the global env_file_number counter.
+            import re, os
+            m = re.search(r'(\d+)$', node_rn)
+            node_num = int(m.group(1)) if m else env_file_number
 
-            if not file_path.exists():
-                with open(file_path, "w") as f:
-                    f.write(f"NODE_NAME={node_rn}\n")
-                    f.write(f"IN_CSE_BASE_URL=http://acme-in:8080/~/id-in/cse-in\n")
-                    f.write(f"ORIGINATOR_ID=CgatewayAgent{env_file_number}\n")
-                    f.write(f"CALLBACK_URL=http://gateway-app{env_file_number}:9000\n")
-                    f.write(f"APPLICATION_NAME=gatewayAgent{env_file_number}\n")
-                    f.write(f"SUBSCRIPTION_NAME=gatewaySubscription{env_file_number}\n")
-                    f.write(f"IMAGE=gateway-app:latest\n")
-                    f.write(f"ACME_IMAGE=ankraft/acme-onem2m-cse:latest\n")
-                    f.write(f"LOG_LEVEL=DEBUG\n")
-                    f.write(f"HOST_CSE_BASE_DIR=/Users/kimminseo/Documents/CMPSC483W/PSU_CAPSTONE_1S26/cse-data\n")
-                    f.write(f"CONTAINER_CSE_BASE_DIR=/shared-cse\n")
-                    f.write(f"DOCKER_HOST=unix:///var/run/docker.sock\n")
-                    f.write(f"DOCKER_NET=acme-net")
+            # Read the just-generated wg0.conf to extract this Pi's WG IP
+            # (needed for CALLBACK_URL and GATEWAY_HOST_ADDR so cross-machine
+            # works — the Pi must be reachable at its WG IP, not at a docker
+            # bridge hostname).
+            wg_conf_path = wireguard_dir / "wg0.conf"
+            pi_wg_addr = None
+            if wg_conf_path.exists():
+                for line in wg_conf_path.read_text().splitlines():
+                    s = line.strip()
+                    if s.startswith("Address"):
+                        # "Address = 10.0.0.2/24" -> "10.0.0.2"
+                        try:
+                            pi_wg_addr = s.split("=", 1)[1].strip().split("/")[0]
+                        except Exception:
+                            pass
+                        break
+
+            # Cross-machine defaults; override via env vars if needed.
+            in_cse_url = os.environ.get(
+                "ORCHESTRATOR_IN_CSE_URL",
+                "http://10.0.0.1:8080/~/id-in/cse-in")
+            gateway_image = os.environ.get(
+                "ORCHESTRATOR_GATEWAY_IMAGE",
+                "10.0.0.1:5000/gateway-agent:latest")
+            acme_image = os.environ.get(
+                "ORCHESTRATOR_ACME_IMAGE",
+                "10.0.0.1:5000/acme-onem2m-cse:arm64")
+            host_cse_dir = os.environ.get(
+                "ORCHESTRATOR_HOST_CSE_BASE_DIR",
+                "/opt/gateway/cse-data")
+            container_cse_dir = os.environ.get(
+                "ORCHESTRATOR_CONTAINER_CSE_BASE_DIR",
+                "/shared-cse")
+            docker_net = os.environ.get(
+                "ORCHESTRATOR_DOCKER_NET",
+                "acme-net")
+
+            callback_url = (f"http://{pi_wg_addr}:9000"
+                            if pi_wg_addr
+                            else f"http://gateway-app{node_num}:9000")
+            gateway_host_addr = pi_wg_addr if pi_wg_addr else "10.0.0.1"
+
+            file_path = new_dir / f".env.rpi{node_num}"
+
+            with open(file_path, "w") as f:
+                f.write(f"NODE_NAME={node_rn}\n")
+                f.write(f"IN_CSE_BASE_URL={in_cse_url}\n")
+                f.write(f"ORIGINATOR_ID=CgatewayAgent{node_num}\n")
+                f.write(f"CALLBACK_URL={callback_url}\n")
+                f.write(f"APPLICATION_NAME=gatewayAgent{node_num}\n")
+                f.write(f"SUBSCRIPTION_NAME=gatewaySubscription{node_num}\n")
+                f.write(f"IMAGE={gateway_image}\n")
+                f.write(f"ACME_IMAGE={acme_image}\n")
+                f.write(f"GATEWAY_HOST_ADDR={gateway_host_addr}\n")
+                f.write(f"LOG_LEVEL=DEBUG\n")
+                f.write(f"HOST_CSE_BASE_DIR={host_cse_dir}\n")
+                f.write(f"CONTAINER_CSE_BASE_DIR={container_cse_dir}\n")
+                f.write(f"DOCKER_HOST=unix:///var/run/docker.sock\n")
+                f.write(f"DOCKER_NET={docker_net}\n")
             env_file_number += 1
             
             upsert_host_topology(node_rn) 
