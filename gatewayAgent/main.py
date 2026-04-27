@@ -88,7 +88,7 @@ while True:
                         # mn_url=f'http://localhost:{mn_loport}/~/{mn_id}/{mn_name}' #mn_loport(pi port):cseport
                         # mn_url=f'http://{docker_name}:{mn_port}/~/{mn_id}/{mn_name}'  # bridge-internal only
                         mn_url=f'http://{gateway_host_addr}:{mn_loport}/~/{mn_id}/{mn_name}'  # cross-machine reachable via Pi WG IP + host port
-                        if start_CSE(mn_id, docker_name, mn_name, mn_loport, mn_port, mn_url, update, network_name=docker_net): #container name==networkhostname, dockernet is defined
+                        if start_CSE(mn_id, docker_name, mn_name, mn_loport, mn_port, mn_url, update): #container name==networkhostname, dockernet is defined
                             register_AE(originator+'MN', application_name+'MN', mn_url)
                             
                 except KeyError:

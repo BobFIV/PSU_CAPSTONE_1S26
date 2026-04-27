@@ -28,13 +28,22 @@ def get_cse_dirs(name: str):
     return host_dir, container_dir
 
 def _volume_spec(name: str):
-    host_dir, _=get_cse_dirs(name)
-    return {
+    host_dir, container_dir = get_cse_dirs(name)
+    spec = {
         str(host_dir): {
             "bind": "/data",
             "mode": "rw"
-        }
+        },
     }
+    # ACME looks for its config at /app/acme.ini (cwd-relative) and the python
+    # package lives at /app, so we can't change cwd without breaking imports.
+    # Bind-mount the generated config file directly into /app/acme.ini.
+    # Existence is checked via the CONTAINER path (visible from inside
+    # gateway-app1) but the bind-mount source MUST be the host path.
+    container_acme_ini = container_dir / "acme.ini"
+    if container_acme_ini.exists():
+        spec[str(host_dir / "acme.ini")] = {"bind": "/app/acme.ini", "mode": "rw"}
+    return spec
 
 def exists_CSE(name: str) -> bool:
     try:
@@ -134,9 +143,13 @@ def start_CSE(id: str, name: str, mn_name:str, loport: str, port: str, url, upda
         print("CSE failed:", str(e))
         return False
 
-    # url = f"http://localhost:{loport}/~/{id}/{name}"
-    # url = f"http://{name}:8080/~/{id}/{mn_name}"
-    
+    # Probe URL is for the gateway-app1 container to reach the freshly-spawned
+    # MN-CSE container ON THE SAME docker network. Use the container hostname
+    # (docker_name) + internal port. The `url` param is the host-routable URL
+    # advertised to IN-CSE for callbacks — not reachable from inside the
+    # gateway-app1 container on a bridge network.
+    probe_url = f'http://{name}:{port}/~/{id}/{mn_name}' if network_name else url
+
     headers = {
         "X-M2M-Origin": "CAdmin",
         "X-M2M-RI": "ping",
@@ -147,10 +160,7 @@ def start_CSE(id: str, name: str, mn_name:str, loport: str, port: str, url, upda
     t0 = time.time()
     while time.time() - t0 < timeout:
         try:
-            requests.get(url, headers=headers, timeout=1)
-            # if not create_CSR(id, name, mn_name):
-            #     print("CSE created but CSR registration failed")
-            #     return False
+            requests.get(probe_url, headers=headers, timeout=1)
             print("CSE Started successfully")
             return True
         except requests.RequestException:
@@ -311,14 +321,14 @@ def update_config(data):
                     "serviceProviderID = //acme.example.com\n"+
                     "adminID = CAdmin\n"+
                     "networkInterface = 0.0.0.0\n"+
-                    f'cseHost = {d["dockerName"]}\n'+ #dockername used as directory name and network host name
+                    f'cseHost = 10.0.0.2\n'+ #dockername used as directory name and network host name
                     "httpPort = 8080\n"+
                     "cseSecret = MY_SECRET\n"+""
                     "databaseType = tinydb\n"+
                     "logLevel = debug\n"+
                     "consoleTheme = dark\n\n"+
                     "[cse.registrar]\n"+
-                    "address = http://acme-in:8080\n"+
+                    "address = http://10.0.0.1:8080\n"+
                     "cseID = /id-in\n"+
                     "resourceName = cse-in\n"+
                     "serialization = json\n\n"+
@@ -326,8 +336,8 @@ def update_config(data):
                     # "registrarCSEPort = 8080\n"+
                     # "registrarCSEID = /id-in\n"+
                     # "registrarCSEName = cse-in\n\n"+
-                    "[cse.registration]\n"+
-                    "allowedCSROriginators = /id-in\n\n"+
+                    # "[cse.registration]\n"+
+                    # "allowedCSROriginators = /id-in\n\n"+
                     "[textui]\n"+
                     "startWithTUI = false\n\n"+
                     "[cse.operation.requests]\n"+

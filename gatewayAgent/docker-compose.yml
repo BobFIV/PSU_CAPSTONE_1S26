@@ -6,6 +6,7 @@ services:
 
   gateway-app1:
     image: ${IMAGE}
+    pull_policy: always
     container_name: gateway-app1
     env_file:
       - .env.rpi1
@@ -25,6 +26,7 @@ services:
 
   gateway-app2:
     image: ${IMAGE}
+    pull_policy: always
     container_name: gateway-app2
     env_file:
       - .env.rpi2
@@ -44,4 +46,5 @@ services:
 
 networks:
   acme-net:
+    name: acme-net   # explicit name; prevents compose from prefixing with project dir name
     driver: bridge
