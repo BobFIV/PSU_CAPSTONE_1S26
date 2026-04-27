@@ -306,70 +306,54 @@ def read_config(dirfilename, section): #not using yet
     cfg.read(p)
     return cfg['basic.config'][section]
 
+def _render_acme_ini(d):
+    return (
+        "[basic.config]\n"
+        "cseType = MN\n"
+        f"cseID = {d['cseID']}\n"
+        f"cseName = {d['cseName']}\n"
+        "serviceProviderID = //acme.example.com\n"
+        "adminID = CAdmin\n"
+        "networkInterface = 0.0.0.0\n"
+        f"cseHost = {gateway_host_addr}\n"
+        "httpPort = 8080\n"
+        "cseSecret = MY_SECRET\n"
+        "databaseType = tinydb\n"
+        "logLevel = debug\n"
+        "consoleTheme = dark\n\n"
+        "[cse.registrar]\n"
+        "address = http://10.0.0.1:8080\n"
+        "cseID = /id-in\n"
+        "resourceName = cse-in\n"
+        "serialization = json\n\n"
+        "[textui]\n"
+        "startWithTUI = false\n\n"
+        "[cse.operation.requests]\n"
+        "enable = true\n\n"
+        "[http]\n"
+        "enableUpperTesterEndpoint = true\n"
+        "enableStructureEndpoint = true\n"
+        "enableManagementEndpoint = true\n\n"
+        "[logging]\n"
+        "enableScreenLogging = true\n"
+    )
+
+
 def update_config(data):
-    #update and return new configs
-    d=parse_cin(data)
-    dirfilename=f"{d['dockerName']}/acme.ini"
-    ini_path=os.path.join(cnt_cse_base, dirfilename)
-    p=Path(ini_path)
-    update=False
+    d = parse_cin(data)
+    ini_path = os.path.join(cnt_cse_base, f"{d['dockerName']}/acme.ini")
+    p = Path(ini_path)
+    p.parent.mkdir(parents=True, exist_ok=True)
 
-    if not p.exists():
-        os.makedirs(os.path.dirname(ini_path), exist_ok=True)
-        with p.open("x") as f:
-            f.write(f'[basic.config]\ncseType = MN\ncseID = {d["cseID"]}\ncseName = {d["cseName"]}\n'+
-                    "serviceProviderID = //acme.example.com\n"+
-                    "adminID = CAdmin\n"+
-                    "networkInterface = 0.0.0.0\n"+
-                    f'cseHost = 10.0.0.2\n'+ #dockername used as directory name and network host name
-                    "httpPort = 8080\n"+
-                    "cseSecret = MY_SECRET\n"+""
-                    "databaseType = tinydb\n"+
-                    "logLevel = debug\n"+
-                    "consoleTheme = dark\n\n"+
-                    "[cse.registrar]\n"+
-                    "address = http://10.0.0.1:8080\n"+
-                    "cseID = /id-in\n"+
-                    "resourceName = cse-in\n"+
-                    "serialization = json\n\n"+
-                    # "registrarCSEHost = acme-in\n"+
-                    # "registrarCSEPort = 8080\n"+
-                    # "registrarCSEID = /id-in\n"+
-                    # "registrarCSEName = cse-in\n\n"+
-                    # "[cse.registration]\n"+
-                    # "allowedCSROriginators = /id-in\n\n"+
-                    "[textui]\n"+
-                    "startWithTUI = false\n\n"+
-                    "[cse.operation.requests]\n"+
-                    "enable = true\n\n"+
-                    "[http]\n"+
-                    "enableUpperTesterEndpoint = true\n"+
-                    "enableStructureEndpoint = true\n"+
-                    "enableManagementEndpoint = true\n\n"+
-                    "[logging]\n"+
-                    "enableScreenLogging = true")
-        print(f"Configuration Created")
-           
-    
-    else:
-        cfg=configparser.ConfigParser()
-        cfg.optionxform=str
-        cfg.read(p)
-        for option,name in d.items():
-            if cfg.has_option('basic.config', option):
-                if cfg['basic.config'][option]!=name:
-                    update=True
-                    cfg['basic.config'][option]=name
-            
-        #can be more
+    new_content = _render_acme_ini(d)
+    update = (not p.exists()) or (p.read_text() != new_content)
+    p.write_text(new_content)
 
-        with p.open("w") as f:
-            cfg.write(f)
     if update:
-        print(f"Configuration updated successfully")
+        print("Configuration written")
     else:
-        print(f"Nothing to update")
-    return d['cseID'],d['cseName'], d['localPort'], d['dockerName'], update
+        print("Nothing to update")
+    return d['cseID'], d['cseName'], d['localPort'], d['dockerName'], update
 
 
 # def set_nummn():
