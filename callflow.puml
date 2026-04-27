@@ -1,0 +1,81 @@
+@startuml
+hide footbox
+
+participant GA as "GatewayAgent"
+participant MN as "MN-CSE (ACME)"
+participant IN as "IN-CSE (ACME)"
+participant CB as "Orchestrator Application"
+
+note over GA,CB
+run components on host machine in separate docker containers
+end note
+
+
+CB -> IN: CREATE <AE> as Corchestrator
+CB -> IN: CREATE <Nod> of gw-node-#
+CB -> IN: CREATE Nod:gw-node-#/gateway_data (content instance)
+CB -> IN: CREATE Nod:gw-node-#/gateway_cmd (execute)
+
+GA -> IN: CREATE <AE> as Cgatewayagent
+GA -> IN: CREATE subscription to Nod:gw-node-#/gateway_cmd
+
+
+...
+
+note left CB
+Orchestrator subscribes to <IN-base>
+end note
+
+
+
+note left CB
+Orchestrator creates <contentInstance>
+describing the Gateway (MN-CSE)
+end note
+
+CB -> IN: CREATE Nod:gw-node-#/gateway_data/<cin> (MN-CSE info)
+CB -> IN: CREATE Nod:gw-node-#/gateway_cmd/<cin> (execute)
+
+IN -> GA: NOTIFY of new Gateway resource Nod:gw-node-#/gateway_cmd
+
+note right GA
+Checks the command == 'execute'
+Deletes Cgatewayagent/cmd/<contentInstance>
+end note
+
+GA -> IN : Gateway Agent retrieves Nod:gw-node-#/gateway_data/<contentInstance> 
+
+note right GA
+update config.ini with the 
+mn-cse name and id
+(re)start MN-CSE in docker
+end note
+
+
+MN <-> IN: REGISTER <CSR> on both sides
+GA -> MN: CREATE <AE> as GatewayAgentMN
+
+=== steady state ===
+
+note left CB
+Orchestrator changes the MN-CSE configuration
+creates <contentInstance> with new data (change mn-cse port, id, name)
+in Nod:gw-node-#/gateway/data resource
+end note
+
+CB -> IN: CREATE contentInstance in Nod:gw-node-#/gateway_data resource
+CB -> IN: CREATE contentInstance in Nod:gw-node-#/gateway_cmd
+note over MN,IN
+IN-CSE notifies Gateway Agent of new data
+end note
+IN -> GA: NOTIFY of new data
+
+
+note right GA
+check "execute", retrieve CIN in gateway_data
+update config.ini with the 
+mn-cse name and id 
+(re)start MN-CSE in docker
+end note
+
+@enduml
