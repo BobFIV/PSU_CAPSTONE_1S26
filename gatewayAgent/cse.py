@@ -8,9 +8,10 @@ import shutil
 from ae import unregister_AE
 from urllib.parse import urlparse
 
-# Internal HTTP port baked into every MN-CSE's acme.ini and used as the
-# container-side port for docker port mapping. Keep these in sync — they MUST
-# match or check_port_mapping won't find the container.
+# Default fallback when the CIN didn't include a localPort. Real deploys
+# always carry localPort from the orchestrator and use that for both the
+# container-internal port AND the host-side mapping (so ACME's advertised
+# poa matches the port the operator actually entered).
 MN_INTERNAL_PORT = "8080"
 
 
@@ -97,15 +98,21 @@ def create_CSE(name: str, loport: str, port: str, network_name: str | None = Non
     except docker.errors.ImageNotFound:
         client.images.pull(acme_image)
     
-    advertised_host=name if network_name else gateway_host_addr
+    # ACME's hostIPAddress env var is what ends up in the CSR's poa registered
+    # to IN-CSE — it OVERRIDES cseHost from acme.ini. Must be the Pi's WG IP
+    # (so IN-CSE sees a unique poa per Pi). The previous "name if network_name"
+    # logic made every MN-CSE advertise its docker container name, which on
+    # cross-Pi deployments collapses to the same string and causes IN-CSE to
+    # replace the first CSR when the second registers.
+    # The bridge-internal probe (gateway-app -> MN-CSE) uses the docker
+    # container name directly, separate from this env var.
     kwargs = {
         "image": acme_image,
         "name": name,
         "detach": True,
         "ports": {f"{port}/tcp": int(loport)},
         "environment": {
-            # use host.docker.internal only if the MN-CSE needs to call back to the host
-            "hostIPAddress": advertised_host
+            "hostIPAddress": gateway_host_addr,
         },
         "volumes": _volume_spec(name),
     }
@@ -324,7 +331,7 @@ def _render_acme_ini(d):
         "adminID = CAdmin\n"
         "networkInterface = 0.0.0.0\n"
         f"cseHost = {gateway_host_addr}\n"
-        f"httpPort = {MN_INTERNAL_PORT}\n"
+        f"httpPort = {d.get('localPort', MN_INTERNAL_PORT)}\n"
         "cseSecret = MY_SECRET\n"
         "databaseType = tinydb\n"
         "logLevel = debug\n"
