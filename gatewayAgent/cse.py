@@ -6,6 +6,12 @@ from setup import *
 import time, requests
 import shutil
 from ae import unregister_AE
+from urllib.parse import urlparse
+
+# Internal HTTP port baked into every MN-CSE's acme.ini and used as the
+# container-side port for docker port mapping. Keep these in sync — they MUST
+# match or check_port_mapping won't find the container.
+MN_INTERNAL_PORT = "8080"
 
 
 
@@ -60,16 +66,20 @@ def is_running_CSE(name: str) -> bool:
     except NotFound:
         return False
 
-def check_port_mapping(name: str) -> str | None:
+def check_port_mapping(name: str, internal_port: str = MN_INTERNAL_PORT) -> str | None:
     try:
         c = client.containers.get(name)
         c.reload()
-        ports = c.attrs["NetworkSettings"]["Ports"]
-        # example key: "8080/tcp"
-        port_info = ports.get("8080/tcp")
-        if not port_info:
-            return None
-        return port_info[0]["HostPort"]
+        ports = c.attrs.get("NetworkSettings", {}).get("Ports") or {}
+        info = ports.get(f"{internal_port}/tcp")
+        if info:
+            return info[0]["HostPort"]
+        # Fall back: any tcp mapping wins. Handles future operators choosing a
+        # non-default httpPort. Returns None if the container is stopped (Ports={}).
+        for key, val in ports.items():
+            if key.endswith("/tcp") and val:
+                return val[0]["HostPort"]
+        return None
     except NotFound:
         return None
 
@@ -109,36 +119,30 @@ def start_CSE(id: str, name: str, mn_name:str, loport: str, port: str, url, upda
     print(f"[start_CSE] entered name={name} loport={loport} port={port}, network={network_name}", flush=True)
     try:
         if exists_CSE(name):
-                
-            old_port = check_port_mapping(name)
+            old_port = check_port_mapping(name, internal_port=str(port))
 
-            if old_port is None:
-                print(f"CSE {name} exists but port mapping could not be read")
-                return False
+            # Recreate when: caller said update, port-mapping differs, OR mapping
+            # is unreadable (stopped containers report Ports={}). Treating None
+            # as "stop and recreate" instead of fatal fixes the modify timeout.
+            needs_recreate = update or old_port is None or str(loport) != str(old_port)
 
-            # #let orchestrator not create same name docker twice. either delete and create or if update, do safety check. (no same name, id exists)
-            # #when user input-> orchestrator check if same name docker exists.-> if yes, check if all fields are the same
-            # # if not, update it with safetycheck
-            # # so anything sent here is safe. & add update: t/f field-> if updated, need to remove and create cse. if not, just restart
-            if update or loport != old_port: # not exactly match
-                ok=unregister_AE(originator+'MN', application_name+'MN', url)
-                if ok:
-                    time.sleep(2)
-                    remove_CSE(name)
-                    create_CSE(name, loport, port, network_name=network_name)
-
-
-            elif not is_running_CSE(name): #name, port match
-                c = client.containers.get(name)
-                c.start()
-
+            if needs_recreate:
+                # AE cleanup is best-effort — don't gate the rebuild on it.
+                try:
+                    unregister_AE(originator+'MN', application_name+'MN', url)
+                except Exception as e:
+                    print("AE unregister best-effort failed:", e)
+                time.sleep(1)
+                remove_CSE(name)
+                create_CSE(name, loport, port, network_name=network_name)
+            elif not is_running_CSE(name):
+                client.containers.get(name).start()
             else:
                 print(f"CSE {name} already exists and running")
                 return True
-
         else:
             create_CSE(name, loport, port, network_name=network_name)
-       
+
     except APIError as e:
         print("CSE failed:", str(e))
         return False
@@ -307,6 +311,10 @@ def read_config(dirfilename, section): #not using yet
     return cfg['basic.config'][section]
 
 def _render_acme_ini(d):
+    # Derive the IN-CSE registrar base URL from cse_url instead of hardcoding,
+    # so changing IN_CSE_BASE_URL in the env file actually takes effect.
+    _p = urlparse(cse_url)
+    registrar_base = f"{_p.scheme}://{_p.netloc}"
     return (
         "[basic.config]\n"
         "cseType = MN\n"
@@ -316,13 +324,13 @@ def _render_acme_ini(d):
         "adminID = CAdmin\n"
         "networkInterface = 0.0.0.0\n"
         f"cseHost = {gateway_host_addr}\n"
-        "httpPort = 8080\n"
+        f"httpPort = {MN_INTERNAL_PORT}\n"
         "cseSecret = MY_SECRET\n"
         "databaseType = tinydb\n"
         "logLevel = debug\n"
         "consoleTheme = dark\n\n"
         "[cse.registrar]\n"
-        "address = http://10.0.0.1:8080\n"
+        f"address = {registrar_base}\n"
         "cseID = /id-in\n"
         "resourceName = cse-in\n"
         "serialization = json\n\n"
