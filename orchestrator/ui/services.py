@@ -134,7 +134,15 @@ def upsert_cse_topology(name: str = "", cse_id: str = "", port: str = "", deploy
                     record["hostNodeId"] = existing["hostNodeId"]
                 # Preserve nodeId from existing record so diagram node doesn't change
                 record["nodeId"] = existing["nodeId"]
-                _topology_state["cses"][index] = {**existing, **record}
+                # Don't clobber populated fields with empty values from a partial
+                # update (e.g. cse-discovery has no dockerName/host_name, so
+                # without this the auto-refresh would wipe the manual deploy's
+                # dockerName and break check_host_availability on next update).
+                merged = {**existing, **record}
+                for key in ("dockerName", "port", "hostNodeId"):
+                    if not record.get(key) and existing.get(key):
+                        merged[key] = existing[key]
+                _topology_state["cses"][index] = merged
                 _touch_topology()
                 return copy.deepcopy(_topology_state["cses"][index])
         
