@@ -130,6 +130,16 @@ def upsert_cse_topology(name: str = "", cse_id: str = "", port: str = "", deploy
                 not final_docker_name and existing["nodeId"] == node_id
             )
             if match:
+                # Discovery is read-only for manually-deployed entries. The
+                # IN-CSE can lag a few seconds behind a just-issued deploy
+                # while the Pi recreates its MN-CSE container; trusting the
+                # stale discovery snapshot would roll our fresh cseID/cseName/
+                # port back to the previous values and the UI would show old
+                # data even though IN-CSE now holds the new CSR.
+                if source == "cse-discovery" and existing.get("source") != "cse-discovery":
+                    _touch_topology()
+                    return copy.deepcopy(existing)
+
                 if source == "cse-discovery" and not host_name and existing.get("hostNodeId"):
                     record["hostNodeId"] = existing["hostNodeId"]
                 # Preserve nodeId from existing record so diagram node doesn't change
