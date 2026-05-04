@@ -1,0 +1,17 @@
+# Django Framework
+Django==4.2.27
+
+# HTTP requests for oneM2M API calls
+requests>=2.31.0
+
+# Docker Python SDK for container management
+docker>=7.0.0
+
+# CORS headers for frontend-backend communication
+django-cors-headers>=4.3.0
+
+# JSON handling (usually included with Python, but explicit)
+# json - built-in module
+
+# Environment variables management
+python-dotenv>=1.0.0

@@ -1,0 +1,50 @@
+# version: "3.9"
+
+services:
+  # in-cse runs on the laptop separately (docker run -e hostIPAddress=10.0.0.1 ...).
+  # Not part of this compose file because each Pi only runs its own gateway-app + spawned MN-CSE.
+
+  gateway-app1:
+    image: ${IMAGE}
+    pull_policy: always
+    container_name: gateway-app1
+    env_file:
+      - .env.rpi1
+    ports:
+      - "9000:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/gateway/cse-data:/shared-cse
+    restart: unless-stopped
+    networks:
+      - acme-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  gateway-app2:
+    image: ${IMAGE}
+    pull_policy: always
+    container_name: gateway-app2
+    env_file:
+      - .env.rpi2
+    ports:
+      - "9001:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/gateway/cse-data:/shared-cse
+    restart: unless-stopped
+    networks:
+      - acme-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+networks:
+  acme-net:
+    name: acme-net   # explicit name; prevents compose from prefixing with project dir name
+    driver: bridge
