@@ -8,10 +8,7 @@ import shutil
 from ae import unregister_AE
 from urllib.parse import urlparse
 
-# Default fallback when the CIN didn't include a localPort. Real deploys
-# always carry localPort from the orchestrator and use that for both the
-# container-internal port AND the host-side mapping (so ACME's advertised
-# poa matches the port the operator actually entered).
+
 MN_INTERNAL_PORT = "8080"
 
 
@@ -42,11 +39,7 @@ def _volume_spec(name: str):
             "mode": "rw"
         },
     }
-    # ACME looks for its config at /app/acme.ini (cwd-relative) and the python
-    # package lives at /app, so we can't change cwd without breaking imports.
-    # Bind-mount the generated config file directly into /app/acme.ini.
-    # Existence is checked via the CONTAINER path (visible from inside
-    # gateway-app1) but the bind-mount source MUST be the host path.
+    
     container_acme_ini = container_dir / "acme.ini"
     if container_acme_ini.exists():
         spec[str(host_dir / "acme.ini")] = {"bind": "/app/acme.ini", "mode": "rw"}
@@ -75,8 +68,7 @@ def check_port_mapping(name: str, internal_port: str = MN_INTERNAL_PORT) -> str 
         info = ports.get(f"{internal_port}/tcp")
         if info:
             return info[0]["HostPort"]
-        # Fall back: any tcp mapping wins. Handles future operators choosing a
-        # non-default httpPort. Returns None if the container is stopped (Ports={}).
+        
         for key, val in ports.items():
             if key.endswith("/tcp") and val:
                 return val[0]["HostPort"]
@@ -98,14 +90,7 @@ def create_CSE(name: str, loport: str, port: str, network_name: str | None = Non
     except docker.errors.ImageNotFound:
         client.images.pull(acme_image)
     
-    # ACME's hostIPAddress env var is what ends up in the CSR's poa registered
-    # to IN-CSE — it OVERRIDES cseHost from acme.ini. Must be the Pi's WG IP
-    # (so IN-CSE sees a unique poa per Pi). The previous "name if network_name"
-    # logic made every MN-CSE advertise its docker container name, which on
-    # cross-Pi deployments collapses to the same string and causes IN-CSE to
-    # replace the first CSR when the second registers.
-    # The bridge-internal probe (gateway-app -> MN-CSE) uses the docker
-    # container name directly, separate from this env var.
+    
     kwargs = {
         "image": acme_image,
         "name": name,
@@ -128,9 +113,7 @@ def start_CSE(id: str, name: str, mn_name:str, loport: str, port: str, url, upda
         if exists_CSE(name):
             old_port = check_port_mapping(name, internal_port=str(port))
 
-            # Recreate when: caller said update, port-mapping differs, OR mapping
-            # is unreadable (stopped containers report Ports={}). Treating None
-            # as "stop and recreate" instead of fatal fixes the modify timeout.
+            
             needs_recreate = update or old_port is None or str(loport) != str(old_port)
 
             if needs_recreate:
@@ -154,11 +137,7 @@ def start_CSE(id: str, name: str, mn_name:str, loport: str, port: str, url, upda
         print("CSE failed:", str(e))
         return False
 
-    # Probe URL is for the gateway-app1 container to reach the freshly-spawned
-    # MN-CSE container ON THE SAME docker network. Use the container hostname
-    # (docker_name) + internal port. The `url` param is the host-routable URL
-    # advertised to IN-CSE for callbacks — not reachable from inside the
-    # gateway-app1 container on a bridge network.
+    
     probe_url = f'http://{name}:{port}/~/{id}/{mn_name}' if network_name else url
 
     headers = {
@@ -308,8 +287,7 @@ def check_port_mapping(name):
 '''
 
 def read_config(dirfilename, section): #not using yet
-    # parent=os.path.dirname(__file__)
-    # grandparent=os.path.dirname(parent)
+    
     ini_path=os.path.join(cnt_cse_base, dirfilename)
     p=Path(ini_path)
     cfg=configparser.ConfigParser()
@@ -318,8 +296,7 @@ def read_config(dirfilename, section): #not using yet
     return cfg['basic.config'][section]
 
 def _render_acme_ini(d):
-    # Derive the IN-CSE registrar base URL from cse_url instead of hardcoding,
-    # so changing IN_CSE_BASE_URL in the env file actually takes effect.
+    
     _p = urlparse(cse_url)
     registrar_base = f"{_p.scheme}://{_p.netloc}"
     return (

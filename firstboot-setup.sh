@@ -1,29 +1,6 @@
 #!/usr/bin/env bash
 #
-# Pi gateway firstboot setup (Path Y — orchestrator-generated WG, docker-compose).
-#
-# Single systemd service (firstboot-setup.service) does:
-#   - Wait for internet
-#   - Install system packages: docker.io, docker-compose-plugin, wireguard-tools, curl
-#   - Trust laptop's insecure registry (10.0.0.1:5000)
-#   - Copy orchestrator-generated wg0.conf to /etc/wireguard, bring up tunnel,
-#     enable wg-quick@wg0 for auto-up on subsequent boots
-#   - Copy .env.rpiN and docker-compose.yml to /opt/gateway
-#   - Run `docker compose up -d <gateway-appN>` (service derived from hostname)
-#
-# Stage on SD bootfs (per-Pi, all 4 are required):
-#   firstboot-setup.sh        (this file — generic, same for every Pi)
-#   wg0.conf                  (orchestrator-generated for this Pi via
-#                              /api/provision/host/, contains [Interface]
-#                              with this Pi's privatekey + [Peer] for laptop)
-#   .env.rpi1 OR .env.rpi2    (per-Pi, from gatewayAgent/.env.rpiN — picked
-#                              by hostname at runtime)
-#   docker-compose.yml        (from gatewayAgent/docker-compose.yml)
-#
-# Install once over SSH after first SSH-able boot:
-#   sudo bash /tmp/firstboot-setup.sh --install
-#
-# Or wire into cloud-init runcmd to make zero-touch:
+# Wire into cloud-init runcmd to make zero-touch:
 #   - sh -c 'BOOT=/boot/firmware; cp $BOOT/firstboot-setup.sh /tmp/;
 #            cp $BOOT/wg0.conf /tmp/; cp $BOOT/.env.rpi1 /tmp/ 2>/dev/null;
 #            cp $BOOT/.env.rpi2 /tmp/ 2>/dev/null; cp $BOOT/docker-compose.yml /tmp/;
@@ -52,10 +29,7 @@ pick_src() {
 LOG_FILE="/var/log/pi-startup.log"
 SCRIPT_PATH="/usr/local/sbin/firstboot-setup.sh"
 
-# Pick gateway compose service + env file from hostname.
-# The env file is required by docker compose for ${IMAGE} substitution in
-# the compose YAML (--env-file at the CLI level), separate from the
-# `env_file:` directive that injects vars into the running container.
+
 case "$(hostname)" in
     mn1)  GATEWAY_SERVICE="gateway-app1"; GATEWAY_ENV_FILE=".env.rpi1" ;;
     mn2)  GATEWAY_SERVICE="gateway-app2"; GATEWAY_ENV_FILE=".env.rpi2" ;;
@@ -96,8 +70,7 @@ SERVICE
     sudo systemctl daemon-reload
     sudo systemctl enable firstboot-setup.service
 
-    # Tear down legacy gateway-bootstrap.service if it exists from the
-    # pre-Path-Y flow (bootstrap_launcher.py is no longer used).
+
     if systemctl list-unit-files 2>/dev/null | grep -q '^gateway-bootstrap\.service'; then
         echo "[install] Removing legacy gateway-bootstrap.service"
         sudo systemctl disable gateway-bootstrap.service 2>/dev/null || true
@@ -135,9 +108,7 @@ if [ "$CONNECTED" -eq 0 ]; then
     exit 1
 fi
 
-# --- ensure clock is sane before apt (signature verification fails if Pi RTC
-#     is back in 1970 or otherwise out of sync). NTP usually catches up within
-#     a few seconds of boot, but on first-boot before networking it can lag. ---
+
 echo "[startup] Ensuring system clock is synced..."
 timedatectl set-ntp true 2>/dev/null || true
 for n in $(seq 1 30); do
@@ -226,7 +197,7 @@ else
     fi
 fi
 
-# Persist across reboots (idempotent)
+
 systemctl enable "wg-quick@${WG_INTERFACE}" 2>/dev/null || true
 
 # --- gateway compose stack: stage env + compose, run compose up ---
@@ -243,10 +214,6 @@ for envfile in .env.rpi1 .env.rpi2; do
     fi
 done
 
-# Bring up the gateway-app via plain `docker run` (no compose).
-# - Uses --env-file to inject runtime env (IN_CSE_BASE_URL, GATEWAY_HOST_ADDR, etc.)
-# - Pulls IMAGE freshly each boot (was pull_policy: always under compose)
-# - Pre-creates the acme-net docker network (compose used to manage this)
 ENV_FILE_PATH="$GATEWAY_INSTALL_DIR/$GATEWAY_ENV_FILE"
 if [ -f "$ENV_FILE_PATH" ]; then
     IMAGE_REF=$(grep '^IMAGE=' "$ENV_FILE_PATH" | cut -d= -f2- | tr -d '\r\n ')

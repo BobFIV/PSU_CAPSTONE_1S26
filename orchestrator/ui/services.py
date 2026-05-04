@@ -130,24 +130,13 @@ def upsert_cse_topology(name: str = "", cse_id: str = "", port: str = "", deploy
                 not final_docker_name and existing["nodeId"] == node_id
             )
             if match:
-                # Discovery is read-only for manually-deployed entries. The
-                # IN-CSE can lag a few seconds behind a just-issued deploy
-                # while the Pi recreates its MN-CSE container; trusting the
-                # stale discovery snapshot would roll our fresh cseID/cseName/
-                # port back to the previous values and the UI would show old
-                # data even though IN-CSE now holds the new CSR.
                 if source == "cse-discovery" and existing.get("source") != "cse-discovery":
                     _touch_topology()
                     return copy.deepcopy(existing)
 
                 if source == "cse-discovery" and not host_name and existing.get("hostNodeId"):
                     record["hostNodeId"] = existing["hostNodeId"]
-                # Preserve nodeId from existing record so diagram node doesn't change
                 record["nodeId"] = existing["nodeId"]
-                # Don't clobber populated fields with empty values from a partial
-                # update (e.g. cse-discovery has no dockerName/host_name, so
-                # without this the auto-refresh would wipe the manual deploy's
-                # dockerName and break check_host_availability on next update).
                 merged = {**existing, **record}
                 for key in ("dockerName", "port", "hostNodeId"):
                     if not record.get(key) and existing.get(key):
@@ -557,17 +546,10 @@ def initialize_provision_host(name: str) -> bool:
 
             provision_wireguard_package(node_rn)
 
-            # Derive node number from node name (gw-node-01 -> 1, gw-node-02 -> 2).
-            # This makes the env file deterministic per node, independent of
-            # provisioning order and the global env_file_number counter.
             import re, os
             m = re.search(r'(\d+)$', node_rn)
             node_num = int(m.group(1)) if m else env_file_number
 
-            # Read the just-generated wg0.conf to extract this Pi's WG IP
-            # (needed for CALLBACK_URL and GATEWAY_HOST_ADDR so cross-machine
-            # works — the Pi must be reachable at its WG IP, not at a docker
-            # bridge hostname).
             wg_conf_path = wireguard_dir / "wg0.conf"
             pi_wg_addr = None
             if wg_conf_path.exists():
