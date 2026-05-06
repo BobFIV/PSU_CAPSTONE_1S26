@@ -12,7 +12,6 @@ def retrieve_node(originator:str, path:str):
 
     response = requests.get(path, headers=headers)
     nod=response.json()['m2m:nod'] 
-    # print(nod)
 
     # Check the response
     if response.status_code == 200:

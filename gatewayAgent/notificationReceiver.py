@@ -24,12 +24,6 @@ class NotificationReceiver(BaseHTTPRequestHandler):
             notify_q.put(data) #this is real
         print(f'<= {data}')
 
-        # cin=process(data)
-        # if cin['con']=='execute':
-        
-        
-
-        # retrieve_contentinstance(originator, application_path+'/cmd')
 
         self.send_response(200)
         self.send_header('X-M2M-RSC', '2000')
